@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9d6729600e0fe942b5f644cbde6c492, type: 3}
+  m_Name: Dunkleosteus
+  m_EditorClassIdentifier: Assembly-CSharp::Descent.UnitDefinitionAsset
+  Id: Dunkleosteus
+  DisplayName: Dunkleosteus
+  Cost: 2
+  BaseStats:
+    HealthPoints: 300
+    AttackSpeed: 0.65
+    SlashOffense: 6
+    ImpactOffense: 18
+    SlashDefense: 6
+    ImpactDefense: 12
+    MoveSpeed: 4
+    AttackRange: 0
+    CollisionShape: 1
+    CollisionRadius: 0
+    CollisionHalfLength: 0
+  BasicAttackDamageProfile:
+    Weights:
+    - Type: 0
+      Weight: 0.1
+    - Type: 1
+      Weight: 0.9
+  AbilityDamageProfile:
+    Weights: []
+  AttackRangeTier: 1
+  CollisionBodyPreset: 4
+  Clades: []
+  InnateKeywordIds: []
+  EligibleMutationIds: []
+  MaxPoolCount: 10

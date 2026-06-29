@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22b933ca472c6a347a069aa7aefa9743, type: 3}
+  m_Name: FaunaDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::FaunaDefinitionDatabaseAsset
+  faunaAssets:
+  - {fileID: 11400000, guid: 94776b1bee636e9458b0f84aa722fea2, type: 2}
+  - {fileID: 11400000, guid: 1a9e7438fc3655b4299ea307a8b71b0c, type: 2}
+  - {fileID: 11400000, guid: 80d5ac3fa14997e4b8e81ac183fec492, type: 2}
+  - {fileID: 11400000, guid: 57bc9019d71be074a91143d5dd21b133, type: 2}
+  - {fileID: 11400000, guid: c701f607a01e78a4eafc19061609cae5, type: 2}
+  - {fileID: 11400000, guid: ee078c349ecf99644a9468706ec7cc04, type: 2}
+  - {fileID: 11400000, guid: d51c05e479036ef45b8aa947a27fb081, type: 2}
+  - {fileID: 11400000, guid: c3ebf13815c6998418094b55c96745aa, type: 2}
+  - {fileID: 11400000, guid: bd66041f1faed254b9526693791cfe3c, type: 2}
+  - {fileID: 11400000, guid: 7825ef80c0e753b408c4361e5d983304, type: 2}
+  - {fileID: 11400000, guid: 74dfbc1c7a1118a4c926fac430794e33, type: 2}
+  - {fileID: 11400000, guid: b57d62489fa3e2b4f98925bb8a27bbf6, type: 2}
+  - {fileID: 11400000, guid: eeeea43338f96964cb4183ec97a1aef2, type: 2}
+  - {fileID: 11400000, guid: d0241d12c050e3b4b9b35ee06c4eb7bb, type: 2}
+  - {fileID: 11400000, guid: 2573cec23aeccc940ba443f676b0d54b, type: 2}
+  - {fileID: 11400000, guid: c1a6b86030dc72745ac9a7af5a48bad1, type: 2}

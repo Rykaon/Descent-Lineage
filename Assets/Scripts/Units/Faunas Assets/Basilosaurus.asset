@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f24ebe4482f4afa47a4fa8b51d649074, type: 3}
+  m_Name: Basilosaurus
+  m_EditorClassIdentifier: Assembly-CSharp::FaunaDefinitionAsset
+  Id: Basilosaurus
+  DisplayName: Basilosaurus
+  FossilValue: 6
+  EligibleBiomes: 04000000
+  EligibleMutations:
+  - {fileID: 11400000, guid: a2f0fe0eab582f6419ac2260ccbc80f5, type: 2}
+  Cost: 6
+  MaxPoolCount: 8

@@ -17,6 +17,6 @@ MonoBehaviour:
   FossilValue: 1
   EligibleBiomes: 0100000003000000
   EligibleMutations:
-  - {fileID: 11400000, guid: 9613a38179e73a14ab06fd433324709f, type: 2}
+  - {fileID: 11400000, guid: 2845aac6be478ba4bbb68ed2ff47059f, type: 2}
   Cost: 1
   MaxPoolCount: 15

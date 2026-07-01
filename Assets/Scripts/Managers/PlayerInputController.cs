@@ -10,11 +10,13 @@ public class PlayerInputController : MonoBehaviour
     [SerializeField] private LayerMask biomeMask;
 
     [SerializeField] private BoardView boardView;
+    [SerializeField] private BattleView battleView;
     [SerializeField] private SellDropZoneView sellDropZoneView;
     [SerializeField] private EventSystem eventSystem;
 
     private LocalPlayerContext context;
-    private GameController gameController;
+    private ClientGameMirror mirror;
+    private IGameCommandSender commandSender;
 
     public bool isDraggingUnit;
     private UnitView draggedUnitView;
@@ -23,15 +25,17 @@ public class PlayerInputController : MonoBehaviour
     public bool isDraggingBiome;
     private BoardBiomeRessourceView draggedBiomeView;
 
-    public void Initialize(LocalPlayerContext context, GameController gameController)
+    public void Initialize(LocalPlayerContext context, IGameCommandSender commandSender, ClientGameMirror mirror)
     {
         this.context = context;
-        this.gameController = gameController;
+        this.commandSender = commandSender;
+        this.mirror = mirror;
 
-        gameController.OnPhaseChanged += HandlePhaseChanged;
+        boardView.Initialize(mirror);
+        battleView.Initialize(mirror);
     }
 
-    private void HandlePhaseChanged(GamePhase phase)
+    public void HandlePhaseChanged(GamePhase phase)
     {
         if (phase == GamePhase.PreBattle && isDraggingUnit)
         {
@@ -45,35 +49,69 @@ public class PlayerInputController : MonoBehaviour
 
     public void BuyShopSlot(int slotIndex)
     {
-        gameController.TryBuyShopSlot(context.PlayerId, slotIndex);
+        GameCommandResult result = commandSender.SubmitCommand(new GameCommand
+        {
+            PlayerId = context.PlayerId,
+            Type = GameCommandType.BuyShopUnit,
+            ShopSlotIndex = slotIndex,
+        });
     }
 
     public void BuyFaunaShopSlot(int slotIndex)
     {
-        gameController.TryBuyFaunaShopSlot(context.PlayerId, slotIndex);
+        GameCommandResult result = commandSender.SubmitCommand(new GameCommand
+        {
+            PlayerId = context.PlayerId,
+            Type = GameCommandType.BuyShopFauna,
+            ShopSlotIndex = slotIndex,
+        });
     }
 
     public void RefreshShop()
     {
-        gameController.TryRefreshShop(context.PlayerId);
+        Debug.Log("[INPUT] RefreshShop pressed");
+
+        GameCommandResult result = commandSender.SubmitCommand(new GameCommand
+        {
+            PlayerId = context.PlayerId,
+            Type = GameCommandType.RerollShop,
+        });
     }
 
     public void BeginDragUnit(UnitView unitView)
     {
-        if (!gameController.TryDragUnit(context.PlayerId, unitView.UnitInstanceId))
+        ClientPlayerMirror player = mirror.LocalPlayer;
+
+        if (player == null)
         {
             return;
         }
 
+        if (!player.Board.TryGetUnit(unitView.UnitInstanceId, out ClientBoardUnitMirror unit))
+        {
+            return;
+        }
+
+        if (mirror.Phase != GamePhase.Preparation)
+        {
+            if (!mirror.SharedBoard.TryGetTile(unit.Node, out ClientBoardTileMirror tile))
+            {
+                return;
+            }
+
+            if (tile.BoardType != BoardType.Bench)
+            {
+                return;
+            }
+        }
+
         draggedUnitView = unitView;
         draggedUnitInstanceId = unitView.UnitInstanceId;
-        unitView.SetDragging(true, false);
 
+        unitView.SetDragging(true, false);
         isDraggingUnit = true;
 
-        gameController.State.GetPlayer(context.PlayerId).Board.TryGetUnitByInstanceId(unitView.UnitInstanceId, out BoardUnitInstance unit);
-
-        sellDropZoneView.Show(gameController.Economy.GetUnitSellCost(unit));
+        sellDropZoneView.Show(unit.SellCost);
     }
 
     public void EndDragUnit()
@@ -85,20 +123,26 @@ public class PlayerInputController : MonoBehaviour
 
         if (TryGetSellDropZoneUnderMouse())
         {
-            if (gameController.TrySellUnit(context.PlayerId, draggedUnitInstanceId))
+            GameCommandResult result = commandSender.SubmitCommand(new GameCommand
             {
-                boardView.ClearUnit(draggedUnitView);
-            }
+                Type = GameCommandType.SellUnit,
+                UnitInstanceId = draggedUnitInstanceId,
+            });
 
-            ClearDraggedUnit(false);
+            ClearDraggedUnit(true);
             return;
         }
 
         if (TryGetTileUnderMouse(out BoardTileView tileView))
         {
-            bool success = gameController.TryDropUnit(context.PlayerId, draggedUnitInstanceId, tileView.Node);
+            GameCommandResult result = commandSender.SubmitCommand(new GameCommand
+            {
+                Type = GameCommandType.DropBoardUnit,
+                UnitInstanceId = draggedUnitInstanceId,
+                ToNode = tileView.Node
+            });
 
-            ClearDraggedUnit(!success);
+            ClearDraggedUnit(true);
             return;
         }
 
@@ -144,7 +188,7 @@ public class PlayerInputController : MonoBehaviour
 
         isDraggingBiome = true;
         draggedBiomeView = biomeRessource;
-        sellDropZoneView.Show(gameController.Economy.Settings.BiomeToAmberConversion);
+        sellDropZoneView.Show(EconomySettings.BiomeToAmberConversion);
     }
 
     public void EndDragBiome()
@@ -156,29 +200,40 @@ public class PlayerInputController : MonoBehaviour
 
         if (TryGetSellDropZoneUnderMouse())
         {
-            if (gameController.TrySellBiome(context.PlayerId))
+            GameCommandResult result = commandSender.SubmitCommand(new GameCommand
             {
-                Destroy(draggedBiomeView.gameObject);
-                draggedBiomeView = null;
-                isDraggingBiome = false;
+                PlayerId = context.PlayerId,
+                Type = GameCommandType.SellBiome,
+            });
 
-                sellDropZoneView.Hide();
-                return;
-            }
-
-            Destroy(draggedBiomeView.gameObject);
-            draggedBiomeView = null;
-            isDraggingBiome = false;
-
-            sellDropZoneView.Hide();
+            ClearDraggedBiome();
+            return;
         }
 
         if (TryGetTileUnderMouse(out BoardTileView tileView))
         {
-            gameController.TryDropBiome(context.PlayerId, tileView.Node, draggedBiomeView.biomeType);
+            GameCommandResult result = commandSender.SubmitCommand(new GameCommand
+            {
+                PlayerId = context.PlayerId,
+                Type = GameCommandType.DropBiomeTile,
+                BiomeType = draggedBiomeView.biomeType,
+                ToNode = tileView.Node
+            });
+
+            ClearDraggedBiome();
+            return;
         }
 
-        Destroy(draggedBiomeView.gameObject);
+        ClearDraggedBiome();
+    }
+
+    private void ClearDraggedBiome()
+    {
+        if (draggedBiomeView != null)
+        {
+            Destroy(draggedBiomeView.gameObject);
+        }
+
         draggedBiomeView = null;
         isDraggingBiome = false;
 

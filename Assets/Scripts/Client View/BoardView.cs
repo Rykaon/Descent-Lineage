@@ -5,7 +5,6 @@ using System.Collections.Generic;
 public class BoardView : MonoBehaviour
 {
     [Header("Refs")]
-    [SerializeField] private GameController gameController;
     [SerializeField] private Transform tileRoot;
     [SerializeField] private Transform unitRoot;
     [SerializeField] private BoardTileView tilePrefab;
@@ -20,23 +19,14 @@ public class BoardView : MonoBehaviour
     [SerializeField] private Material coastMaterial;
     [SerializeField] private Material mountainMaterial;
 
+    private ClientGameMirror mirror;
     private readonly Dictionary<BoardNode, BoardTileView> tiles = new();
     private readonly Dictionary<string, UnitView> unitViews = new();
+    public bool IsBuilt => tiles.Count > 0;
 
-    private void OnEnable()
+    public void Initialize(ClientGameMirror mirror)
     {
-        gameController.OnBoardChanged += HandleBoardChanged;
-    }
-
-    private void OnDisable()
-    {
-        gameController.OnBoardChanged -= HandleBoardChanged;
-    }
-
-    private void Start()
-    {
-        PlayerState localPlayer = gameController.State.Players[0];
-        Build(gameController.State.SharedBoard);
+        this.mirror = mirror;
     }
 
     public UnitView GetUnitView(string unitInstanceId)
@@ -45,26 +35,16 @@ public class BoardView : MonoBehaviour
         return view;
     }
 
-    private void HandleBoardChanged(PlayerState player)
-    {
-        if (player.PlayerId != 0)
-        {
-            return;
-        }
-
-        Refresh(gameController.State.SharedBoard);
-    }
-
-    public void Build(SharedBoardState board)
+    public void Build(ClientGameMirror mirror)
     {
         Clear();
 
-        foreach (var pair in board.Tiles)
+        foreach (var pair in mirror.SharedBoard.Tiles)
         {
-            BoardTileState tile = pair.Value;
+            ClientBoardTileMirror tile = pair.Value;
 
             BoardTileView go = Instantiate(tilePrefab, tileRoot);
-            go.transform.position = board.NodeToWorld(tile.Node);
+            go.transform.position = BoardGeometry.NodeToWorld(tile.Node);
 
             Material mat = GetMaterial(tile);
             go.Initialize(tile.Node, mat);
@@ -72,53 +52,87 @@ public class BoardView : MonoBehaviour
             tiles[tile.Node] = go;
         }
 
-        RefreshUnits(gameController.State.Players[0].Board);
+        Refresh(mirror);
     }
 
-    public void Refresh(SharedBoardState board)
+    public void Refresh(ClientGameMirror mirror)
     {
-        RefreshTiles(board);
-        RefreshUnits(gameController.State.Players[0].Board);
-        RefreshUnits(gameController.State.Players[1].Board);
+        RefreshTiles(mirror.SharedBoard);
+        RemoveMissingUnitViews(mirror);
+        RefreshUnits(mirror.Players[0].Board);
+        RefreshUnits(mirror.Players[1].Board);
     }
 
-    private void RefreshTiles(SharedBoardState board)
+    private void RemoveMissingUnitViews(ClientGameMirror mirror)
+    {
+        List<string> idsToRemove = new();
+
+        foreach (var pair in unitViews)
+        {
+            string unitInstanceId = pair.Key;
+
+            bool exists =
+                mirror.Players[0].Board.UnitsById.ContainsKey(unitInstanceId) ||
+                mirror.Players[1].Board.UnitsById.ContainsKey(unitInstanceId);
+
+            if (!exists)
+            {
+                idsToRemove.Add(unitInstanceId);
+            }
+        }
+
+        foreach (string id in idsToRemove)
+        {
+            UnitView view = unitViews[id];
+            unitViews.Remove(id);
+            Destroy(view.gameObject);
+        }
+    }
+
+    private void RefreshTiles(ClientSharedBoardMirror board)
     {
         foreach (var pair in board.Tiles)
         {
-            BoardTileState tile = pair.Value;
+            ClientBoardTileMirror tile = pair.Value;
 
             if (!tiles.TryGetValue(tile.Node, out var view))
+            {
                 continue;
+            }
 
             view.transform.GetChild(0).GetComponent<Renderer>().material = GetMaterial(tile);
         }
     }
 
-    private void RefreshUnits(PlayerBoardState board)
+    private void RefreshUnits(ClientBoardMirror board)
     {
-        foreach (var unit in board.Units)
+        foreach (var pair in board.UnitsById)
         {
+            ClientBoardUnitMirror unit = pair.Value;
+
             if (!unitViews.TryGetValue(unit.InstanceId, out UnitView unitView))
             {
                 UnitView go = Instantiate(unitPrefab, unitRoot);
                 unitViews[unit.InstanceId] = go;
-                go.Bind(unit);
-                go.SetPosition(gameController.State.SharedBoard.NodeToWorld(unit.Node));
+
+                go.Bind(unit.InstanceId);
+                go.SetPosition(BoardGeometry.NodeToWorld(unit.Node));
             }
             else
             {
-                unitView.SetPosition(gameController.State.SharedBoard.NodeToWorld(unit.Node));
+                unitView.SetPosition(BoardGeometry.NodeToWorld(unit.Node));
             }
         }
     }
 
-    private Material GetMaterial(BoardTileState tile)
+    private Material GetMaterial(ClientBoardTileMirror tile)
     {
-        if (tile.Location == BoardType.Bench)
+        if (tile.BoardType == BoardType.Bench)
+        {
             return benchMaterial;
+        }
 
-        return tile.Biome switch
+        return tile.BiomeType switch
         {
             BiomeType.Forest => forestMaterial,
             BiomeType.Swamp => swampMaterial,

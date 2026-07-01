@@ -15,12 +15,15 @@ public class DamagePopUpView : MonoBehaviour
         this.pool = pool;
     }
 
-    public void Play(int damage)
+    public void Play(int damage, Color color)
     {
         text.text = damage.ToString();
+        text.color = color;
 
         if (routine != null)
+        {
             StopCoroutine(routine);
+        }
 
         routine = StartCoroutine(PopupRoutine());
     }

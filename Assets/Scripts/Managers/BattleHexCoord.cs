@@ -1,13 +1,20 @@
 using System;
-using UnityEngine;
+using Unity.Netcode;
 
-[Serializable]
-public readonly struct BattleHexCoord : IEquatable<BattleHexCoord>
+public struct BattleHexCoord : IEquatable<BattleHexCoord>, INetworkSerializable
 {
-    public readonly int Q;
-    public readonly int R;
+    public int Q { get; private set; }
+    public int R { get; private set; }
 
-    public int S => -Q - R;
+    public static readonly BattleHexCoord[] Directions =
+    {
+        new(+1, 0),
+        new(+1, -1),
+        new(0, -1),
+        new(-1, 0),
+        new(-1, +1),
+        new(0, +1),
+    };
 
     public BattleHexCoord(int q, int r)
     {
@@ -15,30 +22,53 @@ public readonly struct BattleHexCoord : IEquatable<BattleHexCoord>
         R = r;
     }
 
-    public static BattleHexCoord operator +(BattleHexCoord a, BattleHexCoord b) => new(a.Q + b.Q, a.R + b.R);
-    public static BattleHexCoord operator -(BattleHexCoord a, BattleHexCoord b) => new(a.Q - b.Q, a.R - b.R);
-    public static BattleHexCoord operator *(BattleHexCoord a, int scalar) => new(a.Q * scalar, a.R * scalar);
-
     public static int Distance(BattleHexCoord a, BattleHexCoord b)
     {
-        return Mathf.Max(Mathf.Abs(a.Q - b.Q), Mathf.Abs(a.R - b.R), Mathf.Abs(a.S - b.S));
+        int dq = a.Q - b.Q;
+        int dr = a.R - b.R;
+        int ds = (-a.Q - a.R) - (-b.Q - b.R);
+
+        return (Math.Abs(dq) + Math.Abs(dr) + Math.Abs(ds)) / 2;
     }
 
-    public bool Equals(BattleHexCoord other) => Q == other.Q && R == other.R;
-
-    public override bool Equals(object obj) => obj is BattleHexCoord other && Equals(other);
-
-    public override int GetHashCode() => HashCode.Combine(Q, R);
-
-    public override string ToString() => $"({Q}, {R})";
-
-    public static readonly BattleHexCoord[] Directions =
+    public static BattleHexCoord operator +(BattleHexCoord a, BattleHexCoord b)
     {
-        new(1, 0),
-        new(1, -1),
-        new(0, -1),
-        new(-1, 0),
-        new(-1, 1),
-        new(0, 1),
-    };
+        return new BattleHexCoord(a.Q + b.Q, a.R + b.R);
+    }
+
+    public static BattleHexCoord operator *(BattleHexCoord a, int multiplier)
+    {
+        return new BattleHexCoord(a.Q * multiplier, a.R * multiplier);
+    }
+
+    public bool Equals(BattleHexCoord other)
+    {
+        return Q == other.Q && R == other.R;
+    }
+
+    public override bool Equals(object obj)
+    {
+        return obj is BattleHexCoord other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Q, R);
+    }
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer)
+        where T : IReaderWriter
+    {
+        int q = Q;
+        int r = R;
+
+        serializer.SerializeValue(ref q);
+        serializer.SerializeValue(ref r);
+
+        if (serializer.IsReader)
+        {
+            Q = q;
+            R = r;
+        }
+    }
 }

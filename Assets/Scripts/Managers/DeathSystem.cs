@@ -26,17 +26,32 @@ public class DeathSystem
 
     private void ApplyPendingDamage(BattleUnitInstance unit)
     {
-        if (unit.PendingDamage <= 0)
+        if (unit.PendingDamageContexts.Count == 0)
         {
             return;
         }
 
-        int damage = unit.PendingDamage;
+        foreach (DamageContext context in unit.PendingDamageContexts)
+        {
+            int damage = context.FinalDamage;
 
-        unit.CurrentHealth -= damage;
-        unit.PendingDamage = 0;
+            if (damage <= 0)
+            {
+                continue;
+            }
 
-        BattleSystem.RaiseDamageApplied(unit, damage);
+            unit.CurrentHealth -= damage;
+
+            BattleSystem.EventBuffer.AddDamage(new BattleDamageEvent
+            {
+                SourceBattleInstanceId = context.Attacker != null ? context.Attacker.BattleInstanceId : null,
+                TargetBattleInstanceId = unit.BattleInstanceId,
+                Amount = damage,
+                Delivery = context.Delivery
+            });
+        }
+
+        unit.PendingDamageContexts.Clear();
     }
 
     private void CheckDeath(BattleUnitInstance unit)
@@ -46,7 +61,11 @@ public class DeathSystem
             return;
         }
 
+        BattleUnitInstance killer = BattleSystem.BattleState.GetUnitByBattleId(unit.LastDamageSourceBattleInstanceId);
+
         Kill(unit);
+
+        BattleSystem.EffectSystem.UnitDeath(unit, killer);
 
         foreach (var other in BattleSystem.BattleState.Units)
         {
@@ -59,11 +78,9 @@ public class DeathSystem
         unit.IsDead = true;
         unit.NavPresence = NavPresence.None;
         unit.IsEngaged = false;
-        unit.Path.Clear();
         unit.CurrentHealth = 0;
         unit.TimeWithoutMoving = 0f;
         unit.TimeSinceNotEngaged = 0f;
-        unit.ClearAttackSlotReservation();
         unit.HasDesiredAttackPosition = false;
         unit.DesiredPath.Clear();
         unit.CurrentTargetBattleInstanceId = null;

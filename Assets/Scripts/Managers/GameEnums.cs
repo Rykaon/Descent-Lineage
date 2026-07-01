@@ -85,3 +85,17 @@ public enum CollisionBodyPreset
     MediumCapsule,
     LargeCapsule
 }
+
+public enum NetworkGameRole
+{
+    Local,
+    DedicatedServer,
+    Client
+}
+
+public enum NetworkPlayerSlot
+{
+    None = -1,
+    PlayerOne = 0,
+    PlayerTwo = 1
+}

@@ -37,9 +37,9 @@ public sealed class BattleHexGrid
     {
         this.boardState = boardState;
 
-        Width = boardState.Width * BoardToBattleSpacing;
-        Height = boardState.Height * BoardToBattleSpacing;
-        HexSize = boardState.TileSpacing / BoardToBattleSpacing;
+        Width = BoardGeometry.Width * BoardToBattleSpacing;
+        Height = BoardGeometry.Height * BoardToBattleSpacing;
+        HexSize = BoardGeometry.TileSpacing / BoardToBattleSpacing;
 
         BuildBattleHexToBoardNodeLookup();
     }

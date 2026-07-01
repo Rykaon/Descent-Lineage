@@ -71,34 +71,16 @@ public class EconomySystem
         player.BiomeCount += CalculateBiomeIncome(player);
     }
 
-    public int GetUnitSellCost(BoardUnitInstance unit)
+    public static int GetUnitSellCostFromMutationCount(int mutationCount)
     {
-        int cost = 0;
-
-        switch (unit.MutationIds.Count)
+        return mutationCount switch
         {
-            case 0:
-                cost = 1;
-                break;
-
-            case 1:
-                cost = 3;
-                break;
-
-            case 2:
-                cost = 6;
-                break;
-
-            case 3:
-                cost = 9;
-                break;
-
-            default:
-                cost = 0;
-                break;
-        }
-
-        return cost;
+            0 => 1,
+            1 => 3,
+            2 => 6,
+            3 => 9,
+            _ => 0
+        };
     }
 }
 
@@ -110,7 +92,7 @@ public class EconomySettings
     public int BaseAmberIncome = 5;
     public int BaseBiomeIncome = 1;
 
-    public int BiomeToAmberConversion = 3;
+    public static int BiomeToAmberConversion = 3;
 
     public StreakIncomeTier[] AmberStreakTiers =
     {

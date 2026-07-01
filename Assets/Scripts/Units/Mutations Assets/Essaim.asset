@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: aa6fa78e93caaa641bb21961513c2cdc, type: 3}
   m_Name: Essaim
   m_EditorClassIdentifier: Assembly-CSharp::MutationDefinitionAsset
   Id: Essaim

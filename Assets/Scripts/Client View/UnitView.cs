@@ -24,9 +24,9 @@ public class UnitView : MonoBehaviour
     public DamagePopUpPool damagePopUpPool;
     private HealthBarView healthBar;
 
-    public void Bind(BoardUnitInstance unit)
+    public void Bind(string unitInstanceId)
     {
-        UnitInstanceId = unit.InstanceId;
+        UnitInstanceId = unitInstanceId;
     }
 
     public void SetPosition(Vector3 position)
@@ -41,7 +41,13 @@ public class UnitView : MonoBehaviour
 
     public void SetBattlePosition(Vector3 simulationPosition, float moveSpeed)
     {
+        Debug.Log($"[UNIT VIEW SET BATTLE POS] unit={UnitInstanceId} target={simulationPosition} current={transform.position}");
         BattlePosition = simulationPosition;
+
+        if (hasVisualTargetPosition && Vector3.Distance(moveTo, simulationPosition) < 0.001f)
+        {
+            return;
+        }
 
         moveFrom = transform.position;
         moveTo = simulationPosition;
@@ -82,15 +88,15 @@ public class UnitView : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
     }
 
-    public void InstantiateHealthBar(BattleUnitInstance unit)
+    public void InstantiateHealthBar(BattleClientUnit unit)
     {
         healthBar = healthBarPool.Get(healthBarAnchor.position);
-        healthBar.Bind(healthBarAnchor, unit.CurrentHealth, unit.CurrentStats.HealthPoints);
+        healthBar.Bind(healthBarAnchor, unit.CurrentHealth, unit.MaxHealth);
     }
 
-    public void RefreshHealthBar(BattleUnitInstance unit)
+    public void RefreshHealthBar(BattleClientUnit unit)
     {
-        healthBar.SetValue(unit.CurrentHealth, unit.CurrentStats.HealthPoints);
+        healthBar.SetValue(unit.CurrentHealth, unit.MaxHealth);
     }
 
     public void ReleaseHealthBar()
@@ -104,11 +110,11 @@ public class UnitView : MonoBehaviour
         healthBar = null;
     }
 
-    public void ShowDamagePopUp(int damage)
+    public void ShowDamagePopUp(int damage, Color color)
     {
         DamagePopUpView popup = damagePopUpPool.Get(popUpAnchor.position);
 
-        popup.Play(damage);
+        popup.Play(damage, color);
     }
     private void LateUpdate()
     {

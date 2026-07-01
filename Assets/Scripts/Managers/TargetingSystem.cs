@@ -132,12 +132,31 @@ public class TargetingSystem
                 continue;
             }
 
+            TargetQueryContext query = new(seeker, candidate);
+
+            if (candidate.IsCamouflaged())
+            {
+                query.CanTarget = false;
+            }
+
+            BattleSystem.EffectSystem.TargetQuery(query);
+
+            if (!query.CanTarget)
+            {
+                continue;
+            }
+
             if (candidate.OwnerPlayerId == seeker.OwnerPlayerId)
             {
                 continue;
             }
 
             int score = ScoreTargetByPath(seeker, candidate);
+
+            if (query.PriorityBonus != 0)
+            {
+                score = query.PriorityBonus;
+            }
 
             if (score < bestAnyScore)
             {
@@ -252,39 +271,33 @@ public class TargetingSystem
             return false;
         }
 
-        return false;
-    }
-
-    private BattleUnitInstance FindAttackerTargetingMe(BattleUnitInstance unit, BattleState battleState)
-    {
-        foreach (var candidate in battleState.Units)
+        if (target.IsCamouflaged())
         {
-            if (candidate == unit)
-            {
-                continue;
-            }
-
-            if (candidate.IsDead)
-            {
-                continue;
-            }
-
-            if (candidate.OwnerPlayerId == unit.OwnerPlayerId)
-            {
-                continue;
-            }
-
-            if (candidate.CurrentTargetBattleInstanceId == unit.BattleInstanceId)
-            {
-                return candidate;
-            }
+            return false;
         }
 
-        return null;
+        return false;
     }
 
     public void Clear()
     {
 
+    }
+}
+
+public sealed class TargetQueryContext
+{
+    public BattleUnitInstance Seeker;
+    public BattleUnitInstance Candidate;
+
+    public bool CanTarget = true;
+    public int PriorityBonus = 0;
+
+    public TargetQueryContext(
+        BattleUnitInstance seeker,
+        BattleUnitInstance candidate)
+    {
+        Seeker = seeker;
+        Candidate = candidate;
     }
 }

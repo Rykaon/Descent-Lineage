@@ -40,5 +40,5 @@ MonoBehaviour:
   Clades: []
   InnateKeywordIds: []
   EligibleMutationIds:
-  - Essaim
+  - Echolocation
   MaxPoolCount: 10

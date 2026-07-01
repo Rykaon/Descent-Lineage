@@ -9,10 +9,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: c20c220459ff0b046a5420f023080dd0, type: 3}
   m_Name: MutationDatabase
   m_EditorClassIdentifier: Assembly-CSharp::MutationDefinitionDatabaseAsset
   mutationAssets:
+  - {fileID: 11400000, guid: 07f5ce67875780346a9b5e90ca2232d3, type: 2}
+  - {fileID: 11400000, guid: 37fb720f74e986648924df40a947fd65, type: 2}
+  - {fileID: 11400000, guid: ddf7723ed072e02418b0ba1582bda9cd, type: 2}
+  - {fileID: 11400000, guid: 839b13c7daeff85459a3c06393488519, type: 2}
   - {fileID: 11400000, guid: a2f0fe0eab582f6419ac2260ccbc80f5, type: 2}
+  - {fileID: 11400000, guid: 6c2d8ef73f2981f4385be67a0eafb2b5, type: 2}
   - {fileID: 11400000, guid: 99042bfd2e5c28742b3fb94bd303fbf6, type: 2}
   - {fileID: 11400000, guid: 9613a38179e73a14ab06fd433324709f, type: 2}
+  - {fileID: 11400000, guid: 2845aac6be478ba4bbb68ed2ff47059f, type: 2}

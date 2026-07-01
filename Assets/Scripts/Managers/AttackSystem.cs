@@ -30,7 +30,6 @@ public class AttackSystem
 
         if (target == null || target.IsDead)
         {
-            unit.ClearAttackSlotReservation();
             unit.CurrentTargetBattleInstanceId = null;
             return;
         }
@@ -103,9 +102,21 @@ public class AttackSystem
 
     private void ApplyAttack(BattleUnitInstance attacker, BattleUnitInstance target, DamageProfile profile)
     {
-        int damage = ComputeDamage(attacker.CurrentStats, target.CurrentStats, profile);
+        int baseDamage = ComputeDamage(attacker.CurrentStats, target.CurrentStats, profile);
 
-        target.PendingDamage += damage;
+        DamageContext context = new(attacker, target, profile, baseDamage, DamageDelivery.DirectAttack);
+
+        BattleSystem.EffectSystem.BeforeReceiveDamage(context);
+
+        if (context.IsCancelled || context.FinalDamage <= 0)
+        {
+            return;
+        }
+
+        target.LastDamageSourceBattleInstanceId = attacker.BattleInstanceId;
+        target.PendingDamageContexts.Add(context);
+
+        BattleSystem.EffectSystem.BasicAttackHit(context);
     }
 
     public void Clear()

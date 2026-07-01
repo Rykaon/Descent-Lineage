@@ -9,8 +9,11 @@ public class GameController : MonoBehaviour
     public event Action<PlayerState> OnBoardChanged;
     public event Action<GamePhase> OnPhaseChanged;
     public event Action<BattleState> OnBattleStarted;
+    public event Action<BattleState> OnBattleTicked;
     public event Action OnBattleEnded;
 
+    [SerializeField] private GameSessionConfig sessionConfig;
+    [SerializeField] private NetworkGameBridge networkGameBridge;
     [SerializeField] private PlayerInputController localInput;
     [SerializeField] private UnitDefinitionDatabaseAsset unitDatabaseAsset;
     [SerializeField] private MutationDefinitionDatabaseAsset mutationDatabaseAsset;
@@ -47,8 +50,24 @@ public class GameController : MonoBehaviour
 
         InitializeGame();
         InitializeEnemy();
+    }
 
-        EnterPhase(GamePhase.Setup);
+    private IGameCommandSender CreateCommandSender(NetworkGameRole role)
+    {
+        switch (role)
+        {
+            case NetworkGameRole.Local:
+                return new LocalGameCommandSender(this);
+
+            case NetworkGameRole.Client:
+                return new NetworkGameCommandSender(networkGameBridge);
+
+            case NetworkGameRole.DedicatedServer:
+                return null;
+
+            default:
+                return new LocalGameCommandSender(this);
+        }
     }
 
     private void InitializeGame()
@@ -74,8 +93,6 @@ public class GameController : MonoBehaviour
 
         battleSystem = new BattleSystem();
         battleSystem.Initialize(unitDatabase, mutationDatabase, state.SharedBoard);
-
-        localInput.Initialize(new LocalPlayerContext(playerId: 0), this);
     }
 
     private void InitializeEnemy()
@@ -94,19 +111,31 @@ public class GameController : MonoBehaviour
         state.SharedBoard.TryGetTile(new BoardNode(3, 5), out BoardTileState tile9);
         state.SharedBoard.TryGetTile(new BoardNode(4, 5), out BoardTileState tile10);
 
-        enemyState.Board.RegisterUnit(new BoardUnitInstance("Lystrosaurus", 1, new BoardNode(3, 6)), tile1);
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Lystrosaurus", 1, new BoardNode(3, 6)), tile1);
         enemyState.Board.RegisterUnit(new BoardUnitInstance("Dunkleosteus", 1, new BoardNode(4, 5)), tile2);
-        enemyState.Board.RegisterUnit(new BoardUnitInstance("Anomalocaris", 1, new BoardNode(5, 5)), tile3);
-        enemyState.Board.RegisterUnit(new BoardUnitInstance("Tiktaalik", 1, new BoardNode(6, 5)), tile4);
-        enemyState.Board.RegisterUnit(new BoardUnitInstance("Thylacosmilus", 1, new BoardNode(7, 6)), tile5);
-        /*enemyState.Board.RegisterUnit(new BoardUnitInstance("Hallucigenia", 1, new BoardNode(2, 5)), tile6);
-        enemyState.Board.RegisterUnit(new BoardUnitInstance("Quetzalcoatlus", 1, new BoardNode(8, 5)), tile7);
-        enemyState.Board.RegisterUnit(new BoardUnitInstance("Paraceratherium", 1, new BoardNode(1, 6)), tile8);*/
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Anomalocaris", 1, new BoardNode(5, 5)), tile3);
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Tiktaalik", 1, new BoardNode(6, 5)), tile4);
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Thylacosmilus", 1, new BoardNode(7, 6)), tile5);
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Hallucigenia", 1, new BoardNode(2, 5)), tile6);
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Quetzalcoatlus", 1, new BoardNode(8, 5)), tile7);
+        //enemyState.Board.RegisterUnit(new BoardUnitInstance("Paraceratherium", 1, new BoardNode(1, 6)), tile8);
 
+    }
+
+    public void StartGame()
+    {
+        EnterPhase(GamePhase.Setup);
+    }
+
+    public void SetClientPhase(GamePhase phase)
+    {
+        state.Phase = phase;
+        OnPhaseChanged?.Invoke(phase);
     }
 
     private void EnterPhase(GamePhase phase)
     {
+        state.Phase = phase;
         OnPhaseChanged.Invoke(phase);
 
         switch (phase)
@@ -192,7 +221,7 @@ public class GameController : MonoBehaviour
 
     private void RunPreBattlePhase()
     {
-        battleSystem.StartBattle(state);
+        battleSystem.StartServerBattle(state);
 
         OnBattleStarted?.Invoke(battleSystem.BattleState);
         EnterPhase(GamePhase.Battle);
@@ -219,6 +248,7 @@ public class GameController : MonoBehaviour
                    tickCount < MaxBattleTicksPerFrame)
             {
                 battleSystem.Tick(BattleFixedDelta);
+                OnBattleTicked?.Invoke(battleSystem.BattleState);
                 battleTickCount++;
                 accumulator -= BattleFixedDelta;
                 tickCount++;
@@ -278,6 +308,42 @@ public class GameController : MonoBehaviour
     private void RunEndPhase()
     {
         Debug.Log(loser.PlayerId + " a perdu !");
+    }
+
+    public GameCommandResult ApplyCommand(GameCommand command)
+    {
+        bool success = command.Type switch
+        {
+            GameCommandType.BuyShopUnit =>
+                TryBuyShopSlot(command.PlayerId, command.ShopSlotIndex),
+
+            GameCommandType.BuyShopFauna =>
+                TryBuyFaunaShopSlot(command.PlayerId, command.ShopSlotIndex),
+
+            GameCommandType.RerollShop =>
+                TryRefreshShop(command.PlayerId),
+
+            GameCommandType.DragBoardUnit =>
+                TryDragUnit(command.PlayerId, command.UnitInstanceId.ToString()),
+
+            GameCommandType.DropBoardUnit =>
+                TryDropUnit(command.PlayerId, command.UnitInstanceId.ToString(), command.ToNode),
+
+            GameCommandType.SellUnit =>
+                TrySellUnit(command.PlayerId, command.UnitInstanceId.ToString()),
+
+            GameCommandType.DropBiomeTile =>
+                TryDropBiome(command.PlayerId, command.ToNode, command.BiomeType),
+
+            GameCommandType.SellBiome =>
+                TrySellBiome(command.PlayerId),
+
+            _ => false
+        };
+
+        Debug.Log("[COMMAND SUCCES] Command=" + command.Type + " Success=" + success);
+
+        return success ? GameCommandResult.Ok() : GameCommandResult.Fail(command.Type + " failed");
     }
 
     public bool TryBuyShopSlot(int playerId, int slotIndex)
@@ -420,7 +486,7 @@ public class GameController : MonoBehaviour
         }
 
         player.Board.UnregisterUnit(unit, tile);
-        player.AddAmber(economySystem.GetUnitSellCost(unit));
+        player.AddAmber(EconomySystem.GetUnitSellCostFromMutationCount(unit.MutationIds.Count));
         Debug.Log("Player has " + player.AmberCount + " Ambers.");
 
         return true;
@@ -435,7 +501,7 @@ public class GameController : MonoBehaviour
             return false;
         }
 
-        player.AddAmber(economySystem.Settings.BiomeToAmberConversion);
+        player.AddAmber(EconomySettings.BiomeToAmberConversion);
         player.BiomeCount--;
 
         Debug.Log("Player has " + player.AmberCount + " Ambers.");

@@ -37,5 +37,6 @@ MonoBehaviour:
   CollisionBodyPreset: 4
   Clades: []
   InnateKeywordIds: []
-  EligibleMutationIds: []
+  EligibleMutationIds:
+  - Camouflage
   MaxPoolCount: 10

@@ -41,4 +41,5 @@ MonoBehaviour:
   InnateKeywordIds: []
   EligibleMutationIds:
   - Mucus
+  - Venin
   MaxPoolCount: 10

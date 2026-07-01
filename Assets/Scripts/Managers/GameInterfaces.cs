@@ -21,3 +21,8 @@ public interface IFaunaDefinitionDatabase
     bool TryGetFauna(string id, out FaunaDefinition mutation);
     IEnumerable<FaunaDefinition> GetAllFaunas();
 }
+
+public interface IGameCommandSender
+{
+    GameCommandResult SubmitCommand(GameCommand command);
+}

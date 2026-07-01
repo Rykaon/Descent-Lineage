@@ -81,8 +81,6 @@ public sealed class BattleStateBuilder
                     BasicAttackDamageProfile = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).BasicAttackDamageProfile,
                     AbilityDamageProfile = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).AbilityDamageProfile,
 
-                    PendingDamage = 0,
-
                     AttackCooldownRemaining = 0,
                     TimeWithoutMoving = 0,
 
@@ -95,9 +93,6 @@ public sealed class BattleStateBuilder
                     CurrentTargetBattleInstanceId = null,
                     CurrentMoveDestination = default,
                     Forward = default,
-
-                    ReservedAttackSlot = default,
-                    HasReservedAttackSlot = false,
 
                     LastTargetBattleInstanceId = null,
 
@@ -151,6 +146,7 @@ public sealed class BattleStateBuilder
 
                     HasPreparedHexMove = false,
                     PreparedHexMove = default,
+                    LastDamageSourceBattleInstanceId = null,
                 };
 
                 battleState.Units.Add(battleUnit);

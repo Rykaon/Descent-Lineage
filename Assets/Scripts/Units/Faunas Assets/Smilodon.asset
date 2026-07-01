@@ -18,5 +18,6 @@ MonoBehaviour:
   EligibleBiomes: 0300000005000000
   EligibleMutations:
   - {fileID: 11400000, guid: a2f0fe0eab582f6419ac2260ccbc80f5, type: 2}
+  - {fileID: 11400000, guid: 37fb720f74e986648924df40a947fd65, type: 2}
   Cost: 5
   MaxPoolCount: 8

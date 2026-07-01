@@ -19,11 +19,15 @@ public class BattleSystem
     public HexEngagementSystem HexEngagementSystem { get; private set; }
     public AttackSystem AttackSystem { get; private set; }
     public DeathSystem DeathSystem { get; private set; }
+    public BattleEffectSystem EffectSystem { get; private set; }
+    public BattleStatusSystem StatusSystem { get; private set; }
+    public BattleModifierSystem ModifierSystem { get; private set; }
+    public BattleEventBuffer EventBuffer { get; private set; }
 
     public IUnitDefinitionDatabase unitDatabase { get; private set; }
     public IMutationDefinitionDatabase mutationDatabase { get; private set; }
 
-    public event Action<BattleUnitInstance, int> OnDamageApplied;
+    public event Action<BattleUnitInstance, int, DamageDelivery> OnDamageApplied;
 
     public void Initialize(IUnitDefinitionDatabase unitDatabase, IMutationDefinitionDatabase mutationDatabase, SharedBoardState state)
     {
@@ -46,7 +50,10 @@ public class BattleSystem
         HexEngagementSystem = new HexEngagementSystem();
         AttackSystem = new AttackSystem();
         DeathSystem = new DeathSystem();
-
+        EffectSystem = new BattleEffectSystem();
+        StatusSystem = new BattleStatusSystem();
+        ModifierSystem = new BattleModifierSystem();
+        EventBuffer = new BattleEventBuffer();
 
         TargetingSystem.Initialize(this);
         HexAttackPositionSystem.Initialize(this);
@@ -54,30 +61,46 @@ public class BattleSystem
         HexEngagementSystem.Initialize(this);
         AttackSystem.Initialize(this);
         DeathSystem.Initialize(this);
+        EffectSystem.Initialize(this);
+        StatusSystem.Initialize(this);
+        ModifierSystem.Initialize(this);
     }
 
-    public void StartBattle(GameState gameState)
+    public void StartServerBattle(GameState gameState)
     {
         ClearBattle();
 
         BattleState = BattleStateBuilder.Build(gameState, this);
+        EffectSystem.BuildEffectsForBattle();
+    }
+
+    public void SetClientBattleState(BattleState battleState)
+    {
+        ClearBattle();
+
+        BattleState = battleState;
+        EffectSystem.BuildEffectsForBattle();
     }
 
     public void Tick(float deltaTime)
     {
         HexOccupation.Rebuild(BattleState);
 
+        StatusSystem.Tick(deltaTime);
+        ModifierSystem.Tick(deltaTime);
+
         TargetingSystem.Tick(deltaTime);
         HexAttackPositionSystem.Tick(deltaTime);
         HexMovementSystem.Tick(deltaTime);
         HexEngagementSystem.Tick(deltaTime);
+        EffectSystem.Tick(deltaTime);
         AttackSystem.Tick(deltaTime);
         DeathSystem.Tick();
     }
 
-    public void RaiseDamageApplied(BattleUnitInstance target, int damage)
+    public void RaiseDamageApplied(BattleUnitInstance target, int damage, DamageDelivery delivery)
     {
-        OnDamageApplied?.Invoke(target, damage);
+        OnDamageApplied?.Invoke(target, damage, delivery);
     }
 
     public bool TryGetWinner(BattleState battleState, out int winnerPlayerId)
@@ -118,8 +141,10 @@ public class BattleSystem
         HexEngagementSystem.Clear();
         AttackSystem.Clear();
         DeathSystem.Clear();
-
-        
+        EffectSystem.Clear();
+        StatusSystem.Clear();
+        ModifierSystem.Clear();
+        EventBuffer.Clear();
     }
 }
 
@@ -135,6 +160,8 @@ public sealed class BattleUnitInstance
     public Vector2 Position;
 
     public List<string> MutationIds = new();
+    public readonly List<BattleEffectRuntime> Effects = new();
+    public readonly List<BattleStatusRuntime> Statuses = new();
 
     public int MaxHealth;
     public int CurrentHealth;
@@ -148,7 +175,7 @@ public sealed class BattleUnitInstance
     public AttackRangeTier AttackRangeTier;
     public CollisionBodyPreset CollisionBodyPreset;
 
-    public int PendingDamage;
+    public readonly List<DamageContext> PendingDamageContexts = new();
 
     public float AttackCooldownRemaining;
     public float TimeWithoutMoving;
@@ -158,8 +185,6 @@ public sealed class BattleUnitInstance
 
     public NavPresence NavPresence = NavPresence.AgentOnly;
     public float RepathTimer;
-
-    public BattlePathState Path = new();
 
     public readonly List<Vector2> DesiredPath = new();
     public Vector2 LastPathTargetPosition;
@@ -228,27 +253,75 @@ public sealed class BattleUnitInstance
     public bool HasPreparedHexMove;
     public BattleHexCoord PreparedHexMove;
 
+    public string LastDamageSourceBattleInstanceId;
+
+    public bool HasStatus(BattleStatusId statusId)
+    {
+        return GetStatus(statusId) != null;
+    }
+
+    public BattleStatusRuntime GetStatus(BattleStatusId statusId)
+    {
+        for (int i = 0; i < Statuses.Count; i++)
+        {
+            BattleStatusRuntime status = Statuses[i];
+
+            if (status.StatusId == statusId)
+            {
+                return status;
+            }
+        }
+
+        return null;
+    }
+
+    public bool RemoveStatus(BattleStatusId statusId)
+    {
+        for (int i = Statuses.Count - 1; i >= 0; i--)
+        {
+            BattleStatusRuntime status = Statuses[i];
+
+            if (status.StatusId != statusId)
+            {
+                continue;
+            }
+
+            Statuses.RemoveAt(i);
+            return true;
+        }
+
+        return false;
+    }
+
+    public int RemoveAllStatuses(BattleStatusId statusId)
+    {
+        int removedCount = 0;
+
+        for (int i = Statuses.Count - 1; i >= 0; i--)
+        {
+            BattleStatusRuntime status = Statuses[i];
+
+            if (status.StatusId != statusId)
+            {
+                continue;
+            }
+
+            Statuses.RemoveAt(i);
+            removedCount++;
+        }
+
+        return removedCount;
+    }
+
+    public bool IsCamouflaged()
+    {
+        return HasStatus(BattleStatusId.Camouflage);
+    }
+
     public void ClearDecision()
     {
         Decision = BattleUnitDecision.None;
         DecisionReason = null;
-    }
-
-    public void ClearNavigationPath()
-    {
-        DesiredPath.Clear();
-        Path.Clear();
-
-        DesiredVelocity = Vector2.zero;
-        FinalVelocity = Vector2.zero;
-
-        RepathTimer = 0f;
-
-        NoProgressTimer = 0f;
-        LastDistanceToWaypoint = 0f;
-        NavigationAge = 0f;
-        LastNoProgressPosition = default;
-        HasLastNoProgressPosition = false;
     }
 
     public void ClearSlotFailureMemory()
@@ -267,23 +340,6 @@ public sealed class BattleUnitInstance
 
         HasReservedAttackHex = false;
         ReservedAttackHex = default;
-    }
-
-    public void RejectAttackSlot(Vector2 slot, float duration)
-    {
-        RejectedAttackSlots[slot] = duration;
-    }
-
-    public void RejectCurrentTarget(float duration)
-    {
-        if (!string.IsNullOrEmpty(CurrentTargetBattleInstanceId))
-        {
-            RejectedTargets[CurrentTargetBattleInstanceId] = duration;
-        }
-
-        CurrentTargetBattleInstanceId = null;
-
-        ResetNavigationState();
     }
 
     public void OnEngaged(bool value)
@@ -339,9 +395,6 @@ public static class BattleDebugDraw
         if (DrawAttackState)
             DrawEngagement(unit, state);
 
-        if (DrawPaths)
-            DrawPath(unit);
-
         if (DrawVelocities)
             DrawVelocitiesDebug(unit);
 
@@ -364,44 +417,6 @@ public static class BattleDebugDraw
             To3D(unit.Position, 0.15f),
             To3D(target.Position, 0.15f),
             color);
-    }
-
-    private static void DrawReservedSlot(BattleUnitInstance unit)
-    {
-        if (!unit.HasReservedAttackSlot)
-            return;
-
-        DrawCross(
-            unit.ReservedAttackSlot,
-            0.12f,
-            Color.cyan);
-
-        Debug.DrawLine(
-            To3D(unit.Position, 0.1f),
-            To3D(unit.ReservedAttackSlot, 0.1f),
-            Color.cyan);
-    }
-
-    private static void DrawPath(BattleUnitInstance unit)
-    {
-        if (unit.Path == null || !unit.Path.HasPath)
-            return;
-
-        Vector2 previous = unit.Position;
-
-        for (int i = unit.Path.CurrentIndex; i < unit.Path.Waypoints.Count; i++)
-        {
-            Vector2 current = unit.Path.Waypoints[i];
-
-            Debug.DrawLine(
-                To3D(previous, 0.05f),
-                To3D(current, 0.05f),
-                Color.green);
-
-            DrawCross(current, 0.06f, Color.green);
-
-            previous = current;
-        }
     }
 
     private static void DrawVelocitiesDebug(BattleUnitInstance unit)

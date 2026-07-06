@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class FossilSystem
 {
-    public FossilTier[] Tiers =
+    public static FossilTier[] Tiers =
     {
         new FossilTier { MinValue = 0, Level = 1, BoardCapacity = 1 },
         new FossilTier { MinValue = 2, Level = 2, BoardCapacity = 2 },
@@ -19,6 +19,35 @@ public class FossilSystem
     public void Initialize()
     {
         
+    }
+
+    public static int GetRequiredValueForLevel(int level)
+    {
+        foreach (var tier in Tiers)
+        {
+            if (tier.Level == level)
+            {
+                return tier.MinValue;
+            }
+        }
+
+        return Tiers[^1].MinValue;
+    }
+
+    public static int GetNextLevelRequiredValue(int currentLevel)
+    {
+        return GetRequiredValueForLevel(currentLevel + 1);
+    }
+
+    public static int GetXpToNextLevel(int fossilValue, int currentLevel)
+    {
+        int nextRequiredValue = GetNextLevelRequiredValue(currentLevel);
+        return Mathf.Max(0, nextRequiredValue - fossilValue);
+    }
+
+    public static bool IsMaxLevel(int currentLevel)
+    {
+        return currentLevel >= Tiers[^1].Level;
     }
 
     private int CalculateLevel(int fossilValue)

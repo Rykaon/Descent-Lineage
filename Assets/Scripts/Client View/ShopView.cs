@@ -5,6 +5,7 @@ public class ShopView : MonoBehaviour
 {
     [SerializeField] private PlayerInputController inputController;
     [SerializeField] private ShopSlotView[] slotViews;
+    [SerializeField] private ResourceCounterView resourceCounter;
 
     public void Refresh(ClientShopMirror shop)
     {
@@ -18,5 +19,10 @@ public class ShopView : MonoBehaviour
                 inputController.BuyShopSlot(slotIndex);
             });
         }
+    }
+
+    public void RefreshResourcesCount(int AmberCount, int BiomeCount)
+    {
+        resourceCounter.SetResources(AmberCount, BiomeCount);
     }
 }

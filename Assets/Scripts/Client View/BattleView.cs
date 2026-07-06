@@ -40,40 +40,21 @@ public class BattleView : MonoBehaviour
         }
     }
 
-    public void ApplyBattleFrame(BattleFrameSnapshot snapshot, BattleHexGrid hexGrid)
+    public void RefreshBattleFrame()
     {
         if (replicationState == null)
         {
             return;
         }
 
-        foreach (BattleFrameUnitSnapshot unitSnapshot in snapshot.Units)
+        foreach (BattleClientUnit unit in replicationState.Units)
         {
-            if (unitSnapshot.UnitIndex < 0 ||
-                unitSnapshot.UnitIndex >= replicationState.Units.Count)
+            if (!activeBattleViewsByBoardId.TryGetValue(unit.BoardInstanceId, out UnitView view))
             {
                 continue;
             }
 
-            BattleClientUnit unit = replicationState.Units[unitSnapshot.UnitIndex];
-
-            BattleHexCoord hex = new(unitSnapshot.CurrentHexQ, unitSnapshot.CurrentHexR);
-
-            unit.CurrentHex = hex;
-            unit.LastPosition = unit.Position;
-            unit.Position = hexGrid.HexToWorld(hex);
-            Debug.Log($"[CLIENT FRAME APPLY] unit={unit.BoardInstanceId} hex=({unitSnapshot.CurrentHexQ},{unitSnapshot.CurrentHexR}) pos={unit.Position}");
-
-            unit.CurrentHealth = unitSnapshot.CurrentHealth;
-            unit.IsDead = unitSnapshot.IsDead;
-
-            unit.AttackSpeed = unitSnapshot.AttackSpeed;
-            unit.MoveSpeed = unitSnapshot.MoveSpeed;
-
-            int targetIndex = unitSnapshot.TargetUnitIndex;
-
-            unit.CurrentTargetBattleInstanceId = targetIndex >= 0 && targetIndex < replicationState.Units.Count
-                    ? replicationState.Units[targetIndex].BattleInstanceId : null;
+            view.RefreshHealthBar(unit);
         }
     }
 

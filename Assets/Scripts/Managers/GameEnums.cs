@@ -99,3 +99,15 @@ public enum NetworkPlayerSlot
     PlayerOne = 0,
     PlayerTwo = 1
 }
+
+public enum FossilRegistryTarget
+{
+    LocalPlayer,
+    Opponent
+}
+
+public enum FossilRegistryViewMode
+{
+    Local,
+    Opponent
+}

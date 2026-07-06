@@ -16,6 +16,7 @@ public class PlayerState
 
     public void Initialize()
     {
+        Life = 100;
         AmberCount = 0;
         BiomeCount = 0;
 

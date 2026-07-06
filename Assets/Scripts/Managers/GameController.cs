@@ -8,6 +8,7 @@ public class GameController : MonoBehaviour
     public event Action<PlayerState> OnShopChanged;
     public event Action<PlayerState> OnBoardChanged;
     public event Action<GamePhase> OnPhaseChanged;
+    public event Action<int> OnPreparationTicked;
     public event Action<BattleState> OnBattleStarted;
     public event Action<BattleState> OnBattleTicked;
     public event Action OnBattleEnded;
@@ -31,6 +32,10 @@ public class GameController : MonoBehaviour
     private IUnitDefinitionDatabase unitDatabase;
     private IMutationDefinitionDatabase mutationDatabase;
     private IFaunaDefinitionDatabase faunaDatabase;
+
+    public IUnitDefinitionDatabase UnitDatabase => unitDatabase;
+    public IMutationDefinitionDatabase MutationDatabase => mutationDatabase;
+    public IFaunaDefinitionDatabase FaunaDatabase => faunaDatabase;
 
     private PlayerState winner;
     private PlayerState loser;
@@ -208,11 +213,20 @@ public class GameController : MonoBehaviour
     private IEnumerator RunPreparationPhase()
     {
         int duration = 20;
-        float elapsed = 0;
+        float elapsed = duration;
+        int elapsedRounded = duration;
+        OnPreparationTicked.Invoke(elapsedRounded);
 
-        while (elapsed < duration)
+        while (elapsed > 0)
         {
-            elapsed += Time.deltaTime;
+            elapsed -= Time.deltaTime;
+
+            if (Mathf.RoundToInt(elapsed) != elapsedRounded)
+            {
+                elapsedRounded = Mathf.RoundToInt(elapsed);
+                OnPreparationTicked.Invoke(elapsedRounded);
+            }
+            
             yield return null;
         }
 

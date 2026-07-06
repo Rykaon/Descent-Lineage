@@ -22,4 +22,17 @@ public class FossilState
     {
         FossilValue += value;
     }
+
+    public void AddMutation(string mutationId, int amount = 1)
+    {
+        if (string.IsNullOrWhiteSpace(mutationId))
+        {
+            return;
+        }
+
+        if (!Mutations.TryAdd(mutationId, amount))
+        {
+            Mutations[mutationId] += amount;
+        }
+    }
 }

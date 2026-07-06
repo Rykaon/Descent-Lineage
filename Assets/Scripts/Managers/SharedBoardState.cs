@@ -147,6 +147,9 @@ public static class BoardGeometry
     public const int Width = 9;
     public const int Height = 10;
     public const float TileSpacing = 1.1f;
+    public const int BoardToBattleSpacing = 3;
+
+    public static float BattleHexSize => TileSpacing / BoardToBattleSpacing;
 
     public static readonly Vector2 Origin = Vector2.zero;
 
@@ -184,5 +187,23 @@ public static class BoardGeometry
     {
         Vector2 p = NodeToWorld2D(node);
         return new Vector3(p.x, 0f, p.y);
+    }
+
+    public static Vector2 HexToWorld2D(BattleHexCoord hex)
+    {
+        float hexSize = BattleHexSize;
+
+        float xOffset = hex.R % 2 == 0 ? 0f : hexSize * 0.5f;
+
+        float x = hex.Q * hexSize + xOffset;
+        float y = hex.R * hexSize * 0.8660254f;
+
+        return new Vector2(x, y);
+    }
+
+    public static Vector3 HexToWorld(BattleHexCoord hex)
+    {
+        Vector2 position = HexToWorld2D(hex);
+        return new Vector3(position.x, 0f, position.y);
     }
 }

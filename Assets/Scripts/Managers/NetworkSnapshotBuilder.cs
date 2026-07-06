@@ -4,10 +4,16 @@ using UnityEngine;
 public sealed class NetworkSnapshotBuilder
 {
     private readonly GameController gameController;
+    private readonly IUnitDefinitionDatabase unitDatabase;
+    private readonly IMutationDefinitionDatabase mutationDatabase;
+    private readonly IFaunaDefinitionDatabase faunaDatabase;
 
     public NetworkSnapshotBuilder(GameController gameController)
     {
         this.gameController = gameController;
+        unitDatabase = gameController.UnitDatabase;
+        mutationDatabase = gameController.MutationDatabase;
+        faunaDatabase = gameController.FaunaDatabase;
     }
 
     public BoardStateSnapshot BuildBoardStateSnapshot()
@@ -56,6 +62,8 @@ public sealed class NetworkSnapshotBuilder
             snapshots.Add(new PlayerStateSnapshot
             {
                 PlayerId = player.PlayerId,
+
+                Life = player.Life,
                 Amber = player.AmberCount,
                 BiomeBudget = player.BiomeCount,
                 BoardCapacity = player.Board.BoardCapacity,
@@ -141,6 +149,67 @@ public sealed class NetworkSnapshotBuilder
         {
             Slots = slots.ToArray()
         };
+    }
+
+    public FossilStateSnapshot[] BuildFossilStateSnapshot()
+    {
+        var players = gameController.State.Players;
+        var snapshots = new FossilStateSnapshot[players.Length];
+
+        for (int i = 0; i < players.Length; i++)
+        {
+            var player = players[i];
+
+            snapshots[i] = BuildSingleFossilStateSnapshot(player.PlayerId, player.Fossil);
+        }
+
+        return snapshots;
+    }
+
+    private FossilStateSnapshot BuildSingleFossilStateSnapshot(int playerId, FossilState fossil)
+    {
+        int nextLevelXp = FossilSystem.GetNextLevelRequiredValue(fossil.Level);
+        int xpToNextLevel = FossilSystem.GetXpToNextLevel(fossil.FossilValue, fossil.Level);
+
+        var mutationSnapshots = new FossilMutationSnapshot[fossil.Mutations.Count];
+
+        int index = 0;
+
+        foreach (var pair in fossil.Mutations)
+        {
+            string mutationId = pair.Key;
+
+            MutationDefinition mutationDefinition = mutationDatabase.GetMutation(mutationId);
+
+            mutationSnapshots[index] = new FossilMutationSnapshot
+            {
+                MutationId = mutationId,
+                DisplayName = mutationDefinition.DisplayName,
+                Biome = GetPrimaryBiome(mutationDefinition),
+            };
+
+            index++;
+        }
+
+        return new FossilStateSnapshot
+        {
+            PlayerId = playerId,
+            FossilLevel = fossil.Level,
+            CurrentXp = fossil.FossilValue,
+            NextLevelXp = nextLevelXp,
+            XpToNextLevel = xpToNextLevel,
+            Mutations = mutationSnapshots
+        };
+    }
+
+    private BiomeType GetPrimaryBiome(MutationDefinition mutationDefinition)
+    {
+        if (mutationDefinition.EligibleBiomes == null || mutationDefinition.EligibleBiomes.Count == 0)
+        {
+            return BiomeType.None;
+        }
+
+        return mutationDefinition.EligibleBiomes[0];
     }
 
     public BattleInitSnapshot BuildBattleInitSnapshot()

@@ -25,6 +25,8 @@ public class PlayerInputController : MonoBehaviour
     public bool isDraggingBiome;
     private BoardBiomeRessourceView draggedBiomeView;
 
+    private BoardTileView currentDestinationTile;
+
     public void Initialize(LocalPlayerContext context, IGameCommandSender commandSender, ClientGameMirror mirror)
     {
         this.context = context;
@@ -156,6 +158,12 @@ public class PlayerInputController : MonoBehaviour
             draggedUnitView.SetDragging(false, resetPosition);
         }
 
+        if (currentDestinationTile != null)
+        {
+            currentDestinationTile.HideVisualizer();
+        }
+
+        currentDestinationTile = null;
         draggedUnitView = null;
         draggedUnitInstanceId = null;
         isDraggingUnit = false;
@@ -291,7 +299,120 @@ public class PlayerInputController : MonoBehaviour
             return false;
         }
 
-        return hit.collider.TryGetComponent(out biomeView);
+        return hit.collider.transform.parent.TryGetComponent(out biomeView);
+    }
+
+    private bool TryDropUnitAtTile(UnitView unit, BoardTileView tile)
+    {
+        Debug.Log("TRY DROP UNIT ENTER");
+
+        if (!mirror.Players[context.PlayerId].Board.TryGetUnit(unit.UnitInstanceId, out var clientUnit))
+        {
+            Debug.Log("PLAYER NOT FOUND IN MIRROR");
+            return false;
+        }
+
+        if (clientUnit.OwnerPlayerId != context.PlayerId)
+        {
+            return false;
+        }
+
+        if (!mirror.SharedBoard.TryGetTile(clientUnit.Node, out var unitTile))
+        {
+            Debug.Log("UNIT TILE NOT FOUND IN MIRROR");
+            return false;
+        }
+
+        if (!mirror.SharedBoard.TryGetTile(tile.Node, out var destinationTile))
+        {
+            Debug.Log("DESTINATION TILE NOT FOUND IN MIRROR");
+            return false;
+        }
+
+        if (destinationTile.OwnerPlayerId != context.PlayerId)
+        {
+            return false;
+        }
+
+        if (mirror.Phase != GamePhase.Preparation)
+        {
+            if (destinationTile != null && destinationTile.BoardType != BoardType.Bench)
+            {
+                Debug.Log("JE SAIS PAS");
+                return false;
+            }
+        }
+        else
+        {
+            if (destinationTile == null)
+            {
+                Debug.Log("DESTINATION TILE NULL");
+                return false;
+            }
+
+            if (unitTile.BoardType == BoardType.Bench)
+            {
+                if (destinationTile.BoardType == BoardType.Board)
+                {
+                    if (mirror.Players[context.PlayerId].UnitsOnBoard >= mirror.Players[context.PlayerId].BoardCapacity)
+                    {
+                        Debug.Log("TOO MUCH UNIT ON BOARD");
+                        return false;
+                    }
+                    else
+                    {
+                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                        {
+                            if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                            {
+                                Debug.Log("ALREADY UNIT ON NODE");
+                                return false;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                    {
+                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                        {
+                            Debug.Log("ALREADY UNIT ON NODE");
+                            return false;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (destinationTile.BoardType == BoardType.Board)
+                {
+                    if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                    {
+                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                        {
+                            Debug.Log("ALREADY UNIT ON NODE");
+                            return false;
+                        }
+                    }
+                }
+                else
+                {
+                    if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                    {
+                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                        {
+                            Debug.Log("ALREADY UNIT ON NODE");
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        Debug.Log("CAN DROP UNIT");
+
+        return true;
     }
 
     private void Update()
@@ -328,6 +449,49 @@ public class PlayerInputController : MonoBehaviour
         if (draggedUnitView != null)
         {
             draggedUnitView.transform.position = GetMouseWorldPosition();
+
+            if (!TryGetTileUnderMouse(out var tileView))
+            {
+                if (currentDestinationTile != null)
+                {
+                    currentDestinationTile.HideVisualizer();
+                    currentDestinationTile = null;
+                }
+            }
+            else
+            {
+                if (currentDestinationTile != null)
+                {
+                    if (currentDestinationTile != tileView)
+                    {
+                        currentDestinationTile.HideVisualizer();
+                        currentDestinationTile = tileView;
+
+                        if (TryDropUnitAtTile(draggedUnitView, tileView))
+                        {
+                            currentDestinationTile.ShowVisualizer(true);
+                        }
+                        else
+                        {
+                            currentDestinationTile.ShowVisualizer(false);
+                            Debug.Log("False");
+                        }
+                    }
+                }
+                else 
+                {
+                    currentDestinationTile = tileView;
+
+                    if (TryDropUnitAtTile(draggedUnitView, tileView))
+                    {
+                        currentDestinationTile.ShowVisualizer(true);
+                    }
+                    else
+                    {
+                        currentDestinationTile.ShowVisualizer(false);
+                    }
+                }
+            }
 
             if (sellDropZoneView != null)
             {

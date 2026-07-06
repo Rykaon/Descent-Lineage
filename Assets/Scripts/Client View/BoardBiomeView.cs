@@ -32,7 +32,7 @@ public class BoardBiomeView : MonoBehaviour
 
     private void Start()
     {
-        biomeRenderer = GetComponent<Renderer>();
+        biomeRenderer = transform.GetChild(0).GetComponent<Renderer>();
         biomeRenderer.material = GetMaterial();
     }
 

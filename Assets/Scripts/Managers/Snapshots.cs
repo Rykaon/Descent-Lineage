@@ -32,6 +32,8 @@ public struct BoardUnitSnapshot : INetworkSerializable
 public struct PlayerStateSnapshot : INetworkSerializable
 {
     public int PlayerId;
+
+    public int Life;
     public int Amber;
     public int BiomeBudget;
     public int BoardCapacity;
@@ -40,6 +42,7 @@ public struct PlayerStateSnapshot : INetworkSerializable
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref PlayerId);
+        serializer.SerializeValue(ref Life);
         serializer.SerializeValue(ref Amber);
         serializer.SerializeValue(ref BiomeBudget);
         serializer.SerializeValue(ref BoardCapacity);
@@ -185,5 +188,42 @@ public struct BoardStateSnapshot : INetworkSerializable
         {
             serializer.SerializeValue(ref array[i]);
         }
+    }
+}
+
+public struct FossilStateSnapshot : INetworkSerializable
+{
+    public int PlayerId;
+    public int FossilLevel;
+    public int CurrentXp;
+    public int NextLevelXp;
+    public int XpToNextLevel;
+
+    public FossilMutationSnapshot[] Mutations;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref PlayerId);
+        serializer.SerializeValue(ref FossilLevel);
+        serializer.SerializeValue(ref CurrentXp);
+        serializer.SerializeValue(ref NextLevelXp);
+        serializer.SerializeValue(ref XpToNextLevel);
+        serializer.SerializeValue(ref Mutations);
+    }
+}
+
+public struct FossilMutationSnapshot : INetworkSerializable
+{
+    public FixedString64Bytes MutationId;
+    public FixedString64Bytes DisplayName;
+    public BiomeType Biome;
+    public int Rank;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref MutationId);
+        serializer.SerializeValue(ref DisplayName);
+        serializer.SerializeValue(ref Biome);
+        serializer.SerializeValue(ref Rank);
     }
 }

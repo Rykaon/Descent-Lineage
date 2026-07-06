@@ -5,6 +5,9 @@ public sealed class ClientGameMirror
     public GamePhase Phase;
 
     public int LocalPlayerId = -1;
+    public int OpponentPlayerId = -1;
+
+    public int PreparationRemainingTime = -1;
 
     public readonly ClientPlayerMirror[] Players =
     {
@@ -15,6 +18,7 @@ public sealed class ClientGameMirror
     public readonly ClientSharedBoardMirror SharedBoard = new();
 
     public ClientPlayerMirror LocalPlayer => LocalPlayerId >= 0 ? Players[LocalPlayerId] : null;
+    public ClientPlayerMirror OpponentPlayer => LocalPlayerId >= 0 ? Players[OpponentPlayerId] : null;
 
     public ClientPlayerMirror GetPlayer(int playerId)
     {
@@ -26,6 +30,7 @@ public sealed class ClientPlayerMirror
 {
     public int PlayerId;
 
+    public int Life;
     public int Amber;
     public int BiomeCount;
     public int BoardCapacity;
@@ -34,6 +39,7 @@ public sealed class ClientPlayerMirror
     public readonly ClientBoardMirror Board = new();
     public readonly ClientShopMirror Shop = new();
     public readonly ClientFaunaShopMirror FaunaShop = new();
+    public readonly ClientFossilMirror Fossil = new();
 
     public ClientPlayerMirror(int playerId)
     {
@@ -89,4 +95,33 @@ public sealed class ClientShopMirror
 public sealed class ClientFaunaShopMirror
 {
     public FaunaShopSlot[] Slots = new FaunaShopSlot[5];
+}
+
+public sealed class ClientFossilMirror
+{
+    public int PlayerId;
+    public int FossilLevel;
+    public int CurrentXp;
+    public int NextLevelXp;
+    public int XpToNextLevel;
+
+    public readonly List<ClientFossilMutationMirror> Mutations = new();
+
+    public void Clear()
+    {
+        PlayerId = -1;
+        FossilLevel = 0;
+        CurrentXp = 0;
+        NextLevelXp = 0;
+        XpToNextLevel = 0;
+        Mutations.Clear();
+    }
+}
+
+public sealed class ClientFossilMutationMirror
+{
+    public string MutationId;
+    public string DisplayName;
+    public BiomeType Biome;
+    public int Rank;
 }

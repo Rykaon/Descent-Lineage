@@ -6,11 +6,12 @@ using UnityEngine;
 public sealed class NetworkGameBridge : NetworkBehaviour
 {
     [SerializeField] private GameController gameController;
-    [SerializeField] private NetworkSnapshotApplier snapshotApplier;
+    [SerializeField] private ClientGameContext clientContext;
     [SerializeField] private GameSessionConfig sessionConfig;
     [SerializeField] private PlayerInputController localInput;
 
     private NetworkSnapshotBuilder snapshotBuilder;
+    private NetworkSnapshotApplier snapshotApplier;
 
     private readonly NetworkPlayerRegistry playerRegistry = new();
 
@@ -46,6 +47,8 @@ public sealed class NetworkGameBridge : NetworkBehaviour
 
         if (IsClient && !IsServer)
         {
+            Debug.Log($"[BRIDGE] Create applier context={clientContext.GetInstanceID()} mirrorNull={clientContext.Mirror == null}");
+            snapshotApplier = new NetworkSnapshotApplier(clientContext);
             InitializeClientInput();
         }
     }
@@ -68,12 +71,14 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     {
         gameController.OnPhaseChanged += HandlePhaseChanged;
         gameController.OnBattleTicked += HandleBattleTicked;
+        gameController.OnPreparationTicked += HandlePreparationTicked;
     }
 
     private void OnDisable()
     {
         gameController.OnPhaseChanged -= HandlePhaseChanged;
         gameController.OnBattleTicked -= HandleBattleTicked;
+        gameController.OnPreparationTicked -= HandlePreparationTicked;
     }
 
     private void HandleClientConnected(ulong clientId)
@@ -95,7 +100,16 @@ public sealed class NetworkGameBridge : NetworkBehaviour
 
         IGameCommandSender sender = new NetworkGameCommandSender(this);
 
-        snapshotApplier.Mirror.LocalPlayerId = sessionConfig.LocalPlayerId;
+        if (sessionConfig.LocalPlayerId == 0)
+        {
+            snapshotApplier.Mirror.LocalPlayerId = sessionConfig.LocalPlayerId;
+            snapshotApplier.Mirror.OpponentPlayerId = 1;
+        }
+        else
+        {
+            snapshotApplier.Mirror.LocalPlayerId = sessionConfig.LocalPlayerId;
+            snapshotApplier.Mirror.OpponentPlayerId = 0;
+        }
 
         localInput.Initialize(new LocalPlayerContext(sessionConfig.LocalPlayerId), sender, snapshotApplier.Mirror);
 
@@ -123,6 +137,7 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             snapshotBuilder.BuildPlayerStateSnapshot(),
             snapshotBuilder.BuildShopStateSnapshot(),
             snapshotBuilder.BuildFaunaShopStateSnapshot(),
+            snapshotBuilder.BuildFossilStateSnapshot(),
             new GamePhaseSnapshot
             {
                 Phase = gameController.State.Phase
@@ -131,13 +146,7 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     }
 
     [Rpc(SendTo.SpecifiedInParams)]
-    private void SendInitialStateRpc(
-        BoardStateSnapshot board,
-        PlayerStateSnapshot[] players,
-        ShopStateSnapshot shop,
-        FaunaShopStateSnapshot faunaShop,
-        GamePhaseSnapshot phase,
-        RpcParams rpcParams = default)
+    private void SendInitialStateRpc(BoardStateSnapshot board, PlayerStateSnapshot[] players, ShopStateSnapshot shop, FaunaShopStateSnapshot faunaShop, FossilStateSnapshot[] fossils, GamePhaseSnapshot phase, RpcParams rpcParams = default)
     {
         if (IsServer)
         {
@@ -149,6 +158,8 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         snapshotApplier.ApplyBoardState(board);
         snapshotApplier.ApplyShopState(shop);
         snapshotApplier.ApplyFaunaShopState(faunaShop);
+        snapshotApplier.ApplyFossilStates(fossils);
+
     }
 
     public void SubmitCommandToServer(GameCommand command)
@@ -223,6 +234,11 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         }
     }
 
+    private void HandlePreparationTicked(int remainingTime)
+    {
+        BroadcastTimer(remainingTime);
+    }
+
     private void HandleBattleTicked(BattleState battleState)
     {
         if (!CanSendRpc())
@@ -261,6 +277,7 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             case GameCommandType.BuyShopFauna:
                 BroadcastPlayerState();
                 BroadcastFaunaShopState();
+                BroadcastFossilState();
                 break;
 
             case GameCommandType.RerollShop:
@@ -289,6 +306,11 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         }
     }
 
+    private void BroadcastTimer(int remaingTime)
+    {
+        ReceiveTimerRpc(remaingTime);
+    }
+
     private void BroadcastBoardState()
     {
         ReceiveBoardStateRpc(snapshotBuilder.BuildBoardStateSnapshot());
@@ -315,6 +337,17 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         {
             Phase = gameController.State.Phase
         });
+    }
+
+    private void BroadcastFossilState()
+    {
+        if (!CanSendRpc())
+        {
+            return;
+        }
+
+        var snapshot = snapshotBuilder.BuildFossilStateSnapshot();
+        ReceiveFossilStateRpc(snapshot);
     }
 
     private void BroadcastBattleInit()
@@ -352,6 +385,17 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         }
 
         ReceiveBattleEventsRpc(snapshot);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ReceiveTimerRpc(int remaingTime)
+    {
+        if (IsServer)
+        {
+            return;
+        }
+
+        snapshotApplier.ApplyTimer(remaingTime);
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -426,6 +470,12 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         Debug.Log($"[NETWORK] Shop snapshot received. slots={snapshot.Slots.Length}");
 
         snapshotApplier.ApplyFaunaShopState(snapshot);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ReceiveFossilStateRpc(FossilStateSnapshot[] snapshots)
+    {
+        snapshotApplier.ApplyFossilStates(snapshots);
     }
 
     [Rpc(SendTo.ClientsAndHost)]

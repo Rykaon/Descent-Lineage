@@ -311,9 +311,7 @@ public sealed class CarapaceEffectRuntime : BattleEffectRuntime
             return;
         }
 
-        context.FinalDamage = Mathf.Max(
-            0,
-            context.FinalDamage - FlatDamageReduction);
+        context.FinalDamage = Mathf.Max(0, context.FinalDamage - FlatDamageReduction);
     }
 }
 
@@ -391,9 +389,7 @@ public sealed class VeninEffectRuntime : BattleEffectRuntime
     private const int DamagePerStack = 2;
     private const float TickInterval = 1f;
 
-    public override void OnBasicAttackHit(
-        BattleSystem battleSystem,
-        DamageContext context)
+    public override void OnBasicAttackHit(BattleSystem battleSystem, DamageContext context)
     {
         if (context.Attacker != Owner)
         {

@@ -3,11 +3,15 @@ using UnityEngine.UI;
 
 public class HealthBarView : MonoBehaviour
 {
-    [SerializeField] private Image immediateFill;
-    [SerializeField] private Image delayedFill;
+    [SerializeField] private Image healthImmediateFill;
+    [SerializeField] private Image healthDelayedFill;
+    [SerializeField] private Image manaImmediateFill;
+    [SerializeField] private Image manaDelayedFill;
 
-    [SerializeField] private float delayedSpeed = 2f;
-    private float targetValue;
+    [SerializeField] private float healthDelayedSpeed = 2f;
+    [SerializeField] private float manaDelayedSpeed = 2f;
+    private float healthTargetValue;
+    private float manaTargetValue;
 
     private HealthBarPool pool;
     private Transform anchor;
@@ -17,21 +21,32 @@ public class HealthBarView : MonoBehaviour
         this.pool = pool;
     }
 
-    public void Bind(Transform anchor, int current, int max)
+    public void Bind(Transform anchor, int currentHealth, int maxHealth, int currentMana, int maxMana)
     {
         this.anchor = anchor;
 
-        SetValue(current, max);
+        SetHealthValue(currentHealth, maxHealth);
+        SetManaValue(currentMana, maxMana);
 
-        delayedFill.fillAmount = targetValue;
-        immediateFill.fillAmount = targetValue;
+        healthDelayedFill.fillAmount = healthTargetValue;
+        healthImmediateFill.fillAmount = healthTargetValue;
+
+        manaDelayedFill.fillAmount = manaTargetValue;
+        manaImmediateFill.fillAmount = manaTargetValue;
     }
 
-    public void SetValue(int current, int max)
+    public void SetHealthValue(int current, int max)
     {
-        targetValue = max <= 0 ? 0f : (float)current / max;
+        healthTargetValue = max <= 0 ? 0f : (float)current / max;
 
-        immediateFill.fillAmount = targetValue;
+        healthImmediateFill.fillAmount = healthTargetValue;
+    }
+
+    public void SetManaValue(int current, int max)
+    {
+        manaTargetValue = max <= 0 ? 0f : (float)current / max;
+
+        manaImmediateFill.fillAmount = manaTargetValue;
     }
 
     private void Update()
@@ -43,7 +58,8 @@ public class HealthBarView : MonoBehaviour
 
         transform.position = anchor.position;
 
-        delayedFill.fillAmount = Mathf.MoveTowards(delayedFill.fillAmount, targetValue, delayedSpeed * Time.deltaTime);
+        healthDelayedFill.fillAmount = Mathf.MoveTowards(healthDelayedFill.fillAmount, healthTargetValue, healthDelayedSpeed * Time.deltaTime);
+        manaDelayedFill.fillAmount = Mathf.MoveTowards(manaDelayedFill.fillAmount, manaTargetValue, manaDelayedSpeed * Time.deltaTime);
     }
 
     public void Release()

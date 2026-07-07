@@ -35,10 +35,31 @@ public sealed class NetworkSnapshotApplier
 
     public void ApplyBoardState(BoardStateSnapshot snapshot)
     {
-        Debug.Log($"[APPLIER] ApplyBoardState tiles={snapshot.Tiles?.Length} units={snapshot.Units?.Length}");
         ApplyBoardMirror(snapshot);
-        Debug.Log($"[APPLIER] Mirror tiles={Mirror.SharedBoard.Tiles.Count}");
         context.NotifyBoardChanged();
+    }
+
+    public void ApplyCladeStates(CladeStateSnapshot[] snapshots)
+    {
+        foreach (var snapshot in snapshots)
+        {
+            ClientPlayerMirror player = context.Mirror.Players[snapshot.PlayerId];
+
+            player.Clades.Entries.Clear();
+
+            foreach (var clade in snapshot.Clades)
+            {
+                player.Clades.Entries.Add(new ClientCladeProgressMirror
+                {
+                    CladeId = clade.CladeId.ToString(),
+                    Count = clade.Count,
+                    NextThreshold = clade.NextThreshold,
+                    IsActive = clade.IsActive
+                });
+            }
+        }
+
+        context.NotifyCladeChanged();
     }
 
     private void ApplyBoardMirror(BoardStateSnapshot snapshot)
@@ -252,6 +273,8 @@ public sealed class NetworkSnapshotApplier
 
                 CurrentHealth = unitSnapshot.CurrentHealth,
                 MaxHealth = unitSnapshot.MaxHealth,
+                CurrentMana = unitSnapshot.CurrentMana,
+                MaxMana = unitSnapshot.MaxMana,
 
                 AttackSpeed = unitSnapshot.AttackSpeed,
                 MoveSpeed = unitSnapshot.MoveSpeed,
@@ -283,15 +306,17 @@ public sealed class NetworkSnapshotApplier
 
             BattleClientUnit unit = battleState.Units[unitSnapshot.UnitIndex];
 
-            BattleHexCoord hex = new(
-                unitSnapshot.CurrentHexQ,
-                unitSnapshot.CurrentHexR);
+            BattleHexCoord hex = new(unitSnapshot.CurrentHexQ, unitSnapshot.CurrentHexR);
 
             unit.CurrentHex = hex;
             unit.LastPosition = unit.Position;
             unit.Position = BoardGeometry.HexToWorld2D(hex);
 
             unit.CurrentHealth = unitSnapshot.CurrentHealth;
+            unit.MaxHealth = unitSnapshot.MaxHealth;
+            unit.CurrentMana = unitSnapshot.CurrentMana;
+            unit.MaxMana = unitSnapshot.MaxMana;
+
             unit.IsDead = unitSnapshot.IsDead;
 
             unit.AttackSpeed = unitSnapshot.AttackSpeed;

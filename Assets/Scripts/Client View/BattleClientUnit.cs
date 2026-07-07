@@ -16,6 +16,8 @@ public sealed class BattleClientUnit
 
     public int CurrentHealth;
     public int MaxHealth;
+    public int CurrentMana;
+    public int MaxMana;
     public float AttackSpeed;
     public float MoveSpeed;
 

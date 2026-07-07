@@ -22,6 +22,12 @@ public interface IFaunaDefinitionDatabase
     IEnumerable<FaunaDefinition> GetAllFaunas();
 }
 
+public interface ICladeDefinitionDatabase
+{
+    CladeDefinition GetClade(string id);
+    CladeDefinition[] GetAllClades();
+}
+
 public interface IGameCommandSender
 {
     GameCommandResult SubmitCommand(GameCommand command);

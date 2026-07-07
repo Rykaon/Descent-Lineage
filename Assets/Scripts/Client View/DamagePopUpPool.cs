@@ -20,6 +20,7 @@ public class DamagePopUpPool : MonoBehaviour
         DamagePopUpView popUp = available.Count > 0 ? available.Dequeue() : CreateInstance();
 
         popUp.transform.position = position;
+        popUp.transform.position += new Vector3(Random.Range(-0.01f, 0.01f), 0f, Random.Range(-0.01f, 0.01f));
         popUp.gameObject.SetActive(true);
         popUp.Initialize(this);
 

@@ -18,6 +18,9 @@ MonoBehaviour:
   BaseStats:
     HealthPoints: 190
     AttackSpeed: 1.4
+    ManaMax: 100
+    ManaRegenPerAuto: 20
+    ManaRegenPerDamage: 0
     SlashOffense: 7
     ImpactOffense: 4
     SlashDefense: 2
@@ -27,6 +30,7 @@ MonoBehaviour:
     CollisionShape: 1
     CollisionRadius: 0
     CollisionHalfLength: 0
+  AbilityId: Morsure
   BasicAttackDamageProfile:
     Weights:
     - Type: 0
@@ -37,7 +41,8 @@ MonoBehaviour:
     Weights: []
   AttackRangeTier: 1
   CollisionBodyPreset: 4
-  Clades: []
+  Clades:
+  - Cetacea
   InnateKeywordIds: []
   EligibleMutationIds: []
   MaxPoolCount: 10

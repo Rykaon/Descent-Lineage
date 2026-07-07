@@ -15,10 +15,10 @@ public class GameController : MonoBehaviour
 
     [SerializeField] private GameSessionConfig sessionConfig;
     [SerializeField] private NetworkGameBridge networkGameBridge;
-    [SerializeField] private PlayerInputController localInput;
     [SerializeField] private UnitDefinitionDatabaseAsset unitDatabaseAsset;
     [SerializeField] private MutationDefinitionDatabaseAsset mutationDatabaseAsset;
-    [SerializeField] private FaunaDefinitionDatabaseAsset faunaDefinitionDatabaseAsset;
+    [SerializeField] private FaunaDefinitionDatabaseAsset faunaDatabaseAsset;
+    [SerializeField] private CladeDefinitionDatabaseAsset cladeDatabaseAsset;
 
     private GameState state;
 
@@ -32,10 +32,12 @@ public class GameController : MonoBehaviour
     private IUnitDefinitionDatabase unitDatabase;
     private IMutationDefinitionDatabase mutationDatabase;
     private IFaunaDefinitionDatabase faunaDatabase;
+    private ICladeDefinitionDatabase cladeDatabase;
 
     public IUnitDefinitionDatabase UnitDatabase => unitDatabase;
     public IMutationDefinitionDatabase MutationDatabase => mutationDatabase;
     public IFaunaDefinitionDatabase FaunaDatabase => faunaDatabase;
+    public ICladeDefinitionDatabase CladeDatabase => cladeDatabase;
 
     private PlayerState winner;
     private PlayerState loser;
@@ -48,6 +50,10 @@ public class GameController : MonoBehaviour
     private Coroutine preparationRoutine;
     private Coroutine battleRoutine;
 
+    public bool IsGameFinished { get; private set; }
+    public int WinnerPlayerId => winner != null ? winner.PlayerId : -1;
+    public int LoserPlayerId => loser != null ? loser.PlayerId : -1;
+
     private void Start()
     {
         state = new GameState();
@@ -57,29 +63,12 @@ public class GameController : MonoBehaviour
         InitializeEnemy();
     }
 
-    private IGameCommandSender CreateCommandSender(NetworkGameRole role)
-    {
-        switch (role)
-        {
-            case NetworkGameRole.Local:
-                return new LocalGameCommandSender(this);
-
-            case NetworkGameRole.Client:
-                return new NetworkGameCommandSender(networkGameBridge);
-
-            case NetworkGameRole.DedicatedServer:
-                return null;
-
-            default:
-                return new LocalGameCommandSender(this);
-        }
-    }
-
     private void InitializeGame()
     {
         unitDatabase = unitDatabaseAsset.Build();
         mutationDatabase = mutationDatabaseAsset.Build();
-        faunaDatabase = faunaDefinitionDatabaseAsset.Build();
+        faunaDatabase = faunaDatabaseAsset.Build();
+        cladeDatabase = cladeDatabaseAsset.Build();
 
         economySystem = new EconomySystem();
         economySystem.Initialize();
@@ -97,7 +86,7 @@ public class GameController : MonoBehaviour
         boardSystem.Initialize(state.SharedBoard);
 
         battleSystem = new BattleSystem();
-        battleSystem.Initialize(unitDatabase, mutationDatabase, state.SharedBoard);
+        battleSystem.Initialize(unitDatabase, mutationDatabase, cladeDatabase, state.SharedBoard);
     }
 
     private void InitializeEnemy()
@@ -180,20 +169,10 @@ public class GameController : MonoBehaviour
             if (state.RoundIndex == 0)
             {
                 economySystem.ApplyInitIncome(player);
-
-                if (player.PlayerId == 0)
-                {
-                    Debug.Log("Player has " + player.AmberCount + " Ambers and " + player.BiomeCount + " BiomeTiles.");
-                }
             }
             else
             {
                 economySystem.ApplyIncome(player, state.SharedBoard);
-
-                if (player.PlayerId == 0)
-                {
-                    Debug.Log("Player has " + player.AmberCount + " Ambers and " + player.BiomeCount + " BiomeTiles.");
-                }
             }
 
             fossilSystem.ApplyLevel(player);
@@ -212,10 +191,10 @@ public class GameController : MonoBehaviour
 
     private IEnumerator RunPreparationPhase()
     {
-        int duration = 20;
+        int duration = 40;
         float elapsed = duration;
         int elapsedRounded = duration;
-        OnPreparationTicked.Invoke(elapsedRounded);
+        OnPreparationTicked?.Invoke(elapsedRounded);
 
         while (elapsed > 0)
         {
@@ -224,7 +203,7 @@ public class GameController : MonoBehaviour
             if (Mathf.RoundToInt(elapsed) != elapsedRounded)
             {
                 elapsedRounded = Mathf.RoundToInt(elapsed);
-                OnPreparationTicked.Invoke(elapsedRounded);
+                OnPreparationTicked?.Invoke(elapsedRounded);
             }
             
             yield return null;
@@ -280,7 +259,6 @@ public class GameController : MonoBehaviour
 
             if (battleTickTimer >= 1f)
             {
-                //Debug.Log($"Battle ticks/sec = {battleTickCount}");
                 battleTickCount = 0;
                 battleTickTimer = 0f;
             }
@@ -302,8 +280,6 @@ public class GameController : MonoBehaviour
         RoundLoser.Life -= 10;
 
         RoundLoser.CalculateStreak(false);
-        Debug.Log("Player has " + RoundLoser.Streak.Value + " loose streak");
-        Debug.Log("Player has " + RoundLoser.AmberCount + " Ambers.");
         state.GetOtherPlayer(RoundLoser).CalculateStreak(true);
         state.GetOtherPlayer(RoundLoser).AddAmber(1);
 
@@ -311,17 +287,23 @@ public class GameController : MonoBehaviour
         {
             this.loser = loser;
             winner = state.GetOtherPlayer(loser);
+
+            OnBattleEnded?.Invoke();
+
             EnterPhase(GamePhase.End);
+            return;
         }
 
         OnBattleEnded?.Invoke();
+
         state.RoundIndex++;
         EnterPhase(GamePhase.Setup);
     }
 
     private void RunEndPhase()
     {
-        Debug.Log(loser.PlayerId + " a perdu !");
+        IsGameFinished = true;
+        Debug.Log($"[GAME END] Winner={winner.PlayerId} Loser={loser.PlayerId}");
     }
 
     public GameCommandResult ApplyCommand(GameCommand command)
@@ -354,8 +336,6 @@ public class GameController : MonoBehaviour
 
             _ => false
         };
-
-        Debug.Log("[COMMAND SUCCES] Command=" + command.Type + " Success=" + success);
 
         return success ? GameCommandResult.Ok() : GameCommandResult.Fail(command.Type + " failed");
     }
@@ -420,7 +400,6 @@ public class GameController : MonoBehaviour
 
         if (player.AmberCount < player.Shop.RefreshCost)
         {
-            Debug.Log("Not enough Amber to refresh Shop.");
             return false;
         }
 
@@ -501,7 +480,6 @@ public class GameController : MonoBehaviour
 
         player.Board.UnregisterUnit(unit, tile);
         player.AddAmber(EconomySystem.GetUnitSellCostFromMutationCount(unit.MutationIds.Count));
-        Debug.Log("Player has " + player.AmberCount + " Ambers.");
 
         return true;
     }
@@ -518,7 +496,6 @@ public class GameController : MonoBehaviour
         player.AddAmber(EconomySettings.BiomeToAmberConversion);
         player.BiomeCount--;
 
-        Debug.Log("Player has " + player.AmberCount + " Ambers.");
         return true;
     }
 }

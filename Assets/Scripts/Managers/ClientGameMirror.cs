@@ -40,11 +40,25 @@ public sealed class ClientPlayerMirror
     public readonly ClientShopMirror Shop = new();
     public readonly ClientFaunaShopMirror FaunaShop = new();
     public readonly ClientFossilMirror Fossil = new();
+    public readonly ClientCladeMirror Clades = new();
 
     public ClientPlayerMirror(int playerId)
     {
         PlayerId = playerId;
     }
+}
+
+public sealed class ClientCladeMirror
+{
+    public List<ClientCladeProgressMirror> Entries = new();
+}
+
+public sealed class ClientCladeProgressMirror
+{
+    public string CladeId;
+    public int Count;
+    public int NextThreshold;
+    public bool IsActive;
 }
 
 public sealed class ClientBoardMirror

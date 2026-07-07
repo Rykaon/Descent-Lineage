@@ -19,15 +19,9 @@ public class BoardView : MonoBehaviour
     [SerializeField] private Material coastMaterial;
     [SerializeField] private Material mountainMaterial;
 
-    private ClientGameMirror mirror;
     private readonly Dictionary<BoardNode, BoardTileView> tiles = new();
     private readonly Dictionary<string, UnitView> unitViews = new();
     public bool IsBuilt => tiles.Count > 0;
-
-    public void Initialize(ClientGameMirror mirror)
-    {
-        this.mirror = mirror;
-    }
 
     public UnitView GetUnitView(string unitInstanceId)
     {

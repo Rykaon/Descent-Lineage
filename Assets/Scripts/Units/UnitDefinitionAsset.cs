@@ -8,6 +8,7 @@ public sealed class UnitDefinitionAsset : ScriptableObject
     public string DisplayName;
     public int Cost;
     public BaseStats BaseStats;
+    public string AbilityId;
     public DamageProfile BasicAttackDamageProfile;
     public DamageProfile AbilityDamageProfile;
     public AttackRangeTier AttackRangeTier;
@@ -23,6 +24,9 @@ public sealed class UnitDefinitionAsset : ScriptableObject
 
         stats.HealthPoints = BaseStats.HealthPoints;
         stats.AttackSpeed = BaseStats.AttackSpeed;
+        stats.ManaMax = BaseStats.ManaMax;
+        stats.ManaRegenPerAuto = BaseStats.ManaRegenPerAuto;
+        stats.ManaRegenPerDamage = BaseStats.ManaRegenPerDamage;
         stats.SlashOffense = BaseStats.SlashOffense;
         stats.ImpactOffense = BaseStats.ImpactOffense;
         stats.SlashDefense = BaseStats.SlashDefense;
@@ -37,6 +41,7 @@ public sealed class UnitDefinitionAsset : ScriptableObject
             DisplayName = DisplayName,
             Cost = Cost,
             BaseStats = stats,
+            AbilityId = AbilityId,
             BasicAttackDamageProfile = BasicAttackDamageProfile,
             AbilityDamageProfile = AbilityDamageProfile,
             AttackRangeTier = AttackRangeTier,

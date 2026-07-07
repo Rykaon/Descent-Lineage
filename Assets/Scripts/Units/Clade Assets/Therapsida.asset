@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2787dd6e65baab4fa098fcd06f112e2, type: 3}
+  m_Name: Therapsida
+  m_EditorClassIdentifier: Assembly-CSharp::CladeDefinitionAsset
+  Id: Therapsida
+  DisplayName: Therapsida
+  Tiers:
+  - RequiredCount: 2
+    Effects:
+    - EffectId: SharedGrief
+      Value: 1
+      Interval: 0
+      ScalingId: 
+    - EffectId: AttackSpeedFlat
+      Value: 0.15
+      Interval: 0
+      ScalingId: SharedGrief
+  - RequiredCount: 4
+    Effects:
+    - EffectId: SlashOffenseFlat
+      Value: 5
+      Interval: 0
+      ScalingId: SharedGrief
+    - EffectId: ImpactOffenseFlat
+      Value: 5
+      Interval: 0
+      ScalingId: SharedGrief
+  - RequiredCount: 6
+    Effects:
+    - EffectId: HealthRegen
+      Value: 10
+      Interval: 1
+      ScalingId: SharedGrief

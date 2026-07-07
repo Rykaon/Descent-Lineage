@@ -91,12 +91,17 @@ public class UnitView : MonoBehaviour
     public void InstantiateHealthBar(BattleClientUnit unit)
     {
         healthBar = healthBarPool.Get(healthBarAnchor.position);
-        healthBar.Bind(healthBarAnchor, unit.CurrentHealth, unit.MaxHealth);
+        healthBar.Bind(healthBarAnchor, unit.CurrentHealth, unit.MaxHealth, unit.CurrentMana, unit.MaxMana);
     }
 
     public void RefreshHealthBar(BattleClientUnit unit)
     {
-        healthBar.SetValue(unit.CurrentHealth, unit.MaxHealth);
+        healthBar.SetHealthValue(unit.CurrentHealth, unit.MaxHealth);
+    }
+
+    public void RefreshManaBar(BattleClientUnit unit)
+    {
+        healthBar.SetManaValue(unit.CurrentMana, unit.MaxMana);
     }
 
     public void ReleaseHealthBar()

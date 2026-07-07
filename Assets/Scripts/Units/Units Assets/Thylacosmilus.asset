@@ -16,8 +16,11 @@ MonoBehaviour:
   DisplayName: Thylacosmilus
   Cost: 0
   BaseStats:
-    HealthPoints: 230
+    HealthPoints: 130
     AttackSpeed: 1.25
+    ManaMax: 100
+    ManaRegenPerAuto: 20
+    ManaRegenPerDamage: 0
     SlashOffense: 16
     ImpactOffense: 5
     SlashDefense: 4
@@ -27,15 +30,19 @@ MonoBehaviour:
     CollisionShape: 1
     CollisionRadius: 0
     CollisionHalfLength: 0
+  AbilityId: Morsure
   BasicAttackDamageProfile:
     Weights:
     - Type: 0
       Weight: 1
   AbilityDamageProfile:
-    Weights: []
+    Weights:
+    - Type: 0
+      Weight: 1
   AttackRangeTier: 1
   CollisionBodyPreset: 4
-  Clades: []
+  Clades:
+  - Therapsida
   InnateKeywordIds: []
   EligibleMutationIds:
   - Camouflage

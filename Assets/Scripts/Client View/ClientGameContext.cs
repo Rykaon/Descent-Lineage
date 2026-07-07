@@ -6,6 +6,7 @@ public sealed class ClientGameContext : MonoBehaviour
     [SerializeField] private UnitDefinitionDatabaseAsset unitDatabaseAsset;
     [SerializeField] private MutationDefinitionDatabaseAsset mutationDatabaseAsset;
     [SerializeField] private FaunaDefinitionDatabaseAsset faunaDatabaseAsset;
+    [SerializeField] private CladeDefinitionDatabaseAsset cladeDatabaseAsset;
 
     public ClientGameMirror Mirror { get; private set; }
     public BattleClientState BattleState { get; private set; }
@@ -14,9 +15,11 @@ public sealed class ClientGameContext : MonoBehaviour
     public IUnitDefinitionDatabase UnitDatabase { get; private set; }
     public IMutationDefinitionDatabase MutationDatabase { get; private set; }
     public IFaunaDefinitionDatabase FaunaDatabase { get; private set; }
+    public ICladeDefinitionDatabase CladeDatabase { get; private set; }
 
     public event System.Action FossilChanged;
     public event System.Action BoardChanged;
+    public event System.Action CladeChanged;
     public event System.Action ShopChanged;
     public event System.Action FaunaShopChanged;
     public event System.Action PlayerChanged;
@@ -29,19 +32,29 @@ public sealed class ClientGameContext : MonoBehaviour
     public event System.Action<BattleEventsSnapshot> BattleEventsReceived;
     public event System.Action BattleEnded;
 
+    public bool HasInitialState { get; private set; }
+
+    public event System.Action InitialStateReady;
+
     private void Awake()
     {
-        Debug.Log($"[CONTEXT] Awake instance={GetInstanceID()}");
-
         Mirror = new ClientGameMirror();
 
         UnitDatabase = unitDatabaseAsset.Build();
         MutationDatabase = mutationDatabaseAsset.Build();
         FaunaDatabase = faunaDatabaseAsset.Build();
+        CladeDatabase = cladeDatabaseAsset.Build();
+    }
+
+    public void NotifyInitialStateReady()
+    {
+        HasInitialState = true;
+        InitialStateReady?.Invoke();
     }
 
     public void NotifyFossilChanged() => FossilChanged?.Invoke();
     public void NotifyBoardChanged() => BoardChanged?.Invoke();
+    public void NotifyCladeChanged() => CladeChanged?.Invoke();
     public void NotifyShopChanged() => ShopChanged?.Invoke();
     public void NotifyFaunaShopChanged() => FaunaShopChanged?.Invoke();
     public void NotifyPlayerChanged() => PlayerChanged?.Invoke();

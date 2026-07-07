@@ -209,6 +209,11 @@ public class FaunaShopSystem
 
     public bool TryBuySlot(PlayerState player, int slotIndex, GamePhase phase)
     {
+        if (player.FaunaShop.Slots[slotIndex].IsBrick)
+        {
+            return false;
+        }
+
         if (player.AmberCount < player.FaunaShop.Slots[slotIndex].Cost)
         {
             return false;

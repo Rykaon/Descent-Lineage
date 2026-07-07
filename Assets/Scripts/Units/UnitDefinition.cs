@@ -8,6 +8,7 @@ public sealed class UnitDefinition
     public string DisplayName;
     public int Cost;
     public BaseStats BaseStats;
+    public string AbilityId;
     public DamageProfile BasicAttackDamageProfile;
     public DamageProfile AbilityDamageProfile;
     public AttackRangeTier AttackRangeTier;
@@ -23,12 +24,19 @@ public sealed class BaseStats
 {
     public int HealthPoints;
     public float AttackSpeed;
+
+    public int ManaMax;
+    public int ManaRegenPerAuto;
+    public int ManaRegenPerDamage;
+
     public int SlashOffense;
     public int ImpactOffense;
     public int SlashDefense;
     public int ImpactDefense;
+
     public float MoveSpeed;
     public float AttackRange;
+
     public CollisionShapeType CollisionShape;
     public float CollisionRadius;
     public float CollisionHalfLength;
@@ -103,6 +111,29 @@ public static class BattleGeometryPresets
                 break;
         }
     }
+}
+
+public sealed class CladeDefinition
+{
+    public string Id;
+    public string DisplayName;
+    public CladeTierDefinition[] Tiers;
+}
+
+[Serializable]
+public sealed class CladeTierDefinition
+{
+    public int RequiredCount;
+    public CladeEffectDefinition[] Effects;
+}
+
+[Serializable]
+public sealed class CladeEffectDefinition
+{
+    public string EffectId;
+    public float Value;
+    public float Interval;
+    public string ScalingId;
 }
 
 public sealed class MutationDefinition

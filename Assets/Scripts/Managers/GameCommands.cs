@@ -101,7 +101,6 @@ public sealed class NetworkGameCommandSender : IGameCommandSender
 
     public GameCommandResult SubmitCommand(GameCommand command)
     {
-        Debug.Log($"[CLIENT COMMAND] Submit {command.Type}");
         bridge.SubmitCommandToServer(command);
 
         return GameCommandResult.Ok();

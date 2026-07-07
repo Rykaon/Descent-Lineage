@@ -49,9 +49,36 @@ public class DeathSystem
                 Amount = damage,
                 Delivery = context.Delivery
             });
+
+            GainManaOnDamageTaken(unit, damage);
         }
 
         unit.PendingDamageContexts.Clear();
+    }
+
+    private void GainManaOnDamageTaken(BattleUnitInstance unit, int damageTaken)
+    {
+        if (string.IsNullOrEmpty(unit.AbilityId) || unit.AbilityId == "None")
+        {
+            return;
+        }
+
+        if (damageTaken <= 0)
+        {
+            return;
+        }
+
+        int before = unit.CurrentMana;
+
+        unit.CurrentMana += damageTaken * unit.CurrentStats.ManaRegenPerDamage;
+        unit.CurrentMana = Mathf.Min(unit.CurrentMana, unit.CurrentStats.ManaMax);
+
+        int gained = unit.CurrentMana - before;
+
+        if (gained != 0)
+        {
+            BattleSystem.EventBuffer.AddManaEvent(unit, gained);
+        }
     }
 
     private void CheckDeath(BattleUnitInstance unit)
@@ -66,6 +93,7 @@ public class DeathSystem
         Kill(unit);
 
         BattleSystem.EffectSystem.UnitDeath(unit, killer);
+        BattleSystem.CladeSystem.OnUnitDeath(unit);
 
         foreach (var other in BattleSystem.BattleState.Units)
         {
@@ -80,7 +108,6 @@ public class DeathSystem
         unit.IsEngaged = false;
         unit.CurrentHealth = 0;
         unit.TimeWithoutMoving = 0f;
-        unit.TimeSinceNotEngaged = 0f;
         unit.HasDesiredAttackPosition = false;
         unit.DesiredPath.Clear();
         unit.CurrentTargetBattleInstanceId = null;

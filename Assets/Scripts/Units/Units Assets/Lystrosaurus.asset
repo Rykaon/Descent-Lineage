@@ -18,6 +18,9 @@ MonoBehaviour:
   BaseStats:
     HealthPoints: 280
     AttackSpeed: 0.75
+    ManaMax: 100
+    ManaRegenPerAuto: 20
+    ManaRegenPerDamage: 0
     SlashOffense: 5
     ImpactOffense: 10
     SlashDefense: 8
@@ -27,6 +30,7 @@ MonoBehaviour:
     CollisionShape: 1
     CollisionRadius: 0
     CollisionHalfLength: 0
+  AbilityId: Morsure
   BasicAttackDamageProfile:
     Weights:
     - Type: 1
@@ -35,7 +39,8 @@ MonoBehaviour:
     Weights: []
   AttackRangeTier: 1
   CollisionBodyPreset: 4
-  Clades: []
+  Clades:
+  - Therapsida
   InnateKeywordIds: []
   EligibleMutationIds:
   - Carapace

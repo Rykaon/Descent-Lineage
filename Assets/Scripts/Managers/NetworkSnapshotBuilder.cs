@@ -7,6 +7,7 @@ public sealed class NetworkSnapshotBuilder
     private readonly IUnitDefinitionDatabase unitDatabase;
     private readonly IMutationDefinitionDatabase mutationDatabase;
     private readonly IFaunaDefinitionDatabase faunaDatabase;
+    private readonly ICladeDefinitionDatabase cladeDatabase;
 
     public NetworkSnapshotBuilder(GameController gameController)
     {
@@ -14,6 +15,7 @@ public sealed class NetworkSnapshotBuilder
         unitDatabase = gameController.UnitDatabase;
         mutationDatabase = gameController.MutationDatabase;
         faunaDatabase = gameController.FaunaDatabase;
+        cladeDatabase = gameController.CladeDatabase;
     }
 
     public BoardStateSnapshot BuildBoardStateSnapshot()
@@ -51,6 +53,99 @@ public sealed class NetworkSnapshotBuilder
             Units = unitSnapshots.ToArray(),
             Tiles = tileSnapshots.ToArray()
         };
+    }
+
+    public CladeStateSnapshot[] BuildCladeStateSnapshot()
+    {
+        CladeStateSnapshot[] result = new CladeStateSnapshot[2];
+
+        for (int playerId = 0; playerId < 2; playerId++)
+        {
+            PlayerState player = gameController.State.GetPlayer(playerId);
+
+            Dictionary<string, int> counts = new();
+
+            foreach (BoardUnitInstance unit in player.Board.Units)
+            {
+                if (!gameController.State.SharedBoard.TryGetTile(unit.Node, out BoardTileState tile))
+                {
+                    continue;
+                }
+
+                if (tile.Location != BoardType.Board)
+                {
+                    continue;
+                }
+
+                UnitDefinition definition = gameController.UnitDatabase.GetUnit(unit.DefinitionId);
+
+                foreach (string cladeId in definition.Clades)
+                {
+                    counts.TryAdd(cladeId, 0);
+                    counts[cladeId]++;
+                }
+            }
+
+            List<CladeProgressSnapshot> clades = new();
+
+            foreach (CladeDefinition clade in gameController.CladeDatabase.GetAllClades())
+            {
+                counts.TryGetValue(clade.Id, out int count);
+
+                int nextThreshold = GetNextThreshold(clade, count);
+                bool isActive = IsAnyTierActive(clade, count);
+
+                clades.Add(new CladeProgressSnapshot
+                {
+                    CladeId = clade.Id,
+                    Count = count,
+                    NextThreshold = nextThreshold,
+                    IsActive = isActive
+                });
+            }
+
+            result[playerId] = new CladeStateSnapshot
+            {
+                PlayerId = playerId,
+                Clades = clades.ToArray()
+            };
+        }
+
+        return result;
+    }
+
+    private int GetNextThreshold(CladeDefinition clade, int count)
+    {
+        int best = 0;
+
+        foreach (var tier in clade.Tiers)
+        {
+            if (tier.RequiredCount > count)
+            {
+                if (best == 0 || tier.RequiredCount < best)
+                {
+                    best = tier.RequiredCount;
+                }
+            }
+        }
+
+        if (best == 0 && clade.Tiers.Length > 0)
+        {
+            best = clade.Tiers[^1].RequiredCount;
+        }
+
+        return best;
+    }
+
+    private bool IsAnyTierActive(CladeDefinition clade, int count)
+    {
+        foreach (var tier in clade.Tiers)
+        {
+            if (count >= tier.RequiredCount)
+                return true;
+        }
+
+        return false;
     }
 
     public PlayerStateSnapshot[] BuildPlayerStateSnapshot()
@@ -235,6 +330,8 @@ public sealed class NetworkSnapshotBuilder
 
                 CurrentHealth = unit.CurrentHealth,
                 MaxHealth = unit.MaxHealth,
+                CurrentMana = unit.CurrentMana,
+                MaxMana = unit.CurrentStats.ManaMax,
 
                 AttackSpeed = unit.CurrentStats.AttackSpeed,
                 MoveSpeed = unit.CurrentStats.MoveSpeed
@@ -270,6 +367,9 @@ public sealed class NetworkSnapshotBuilder
                 CurrentHexR = unit.CurrentHex.R,
 
                 CurrentHealth = unit.CurrentHealth,
+                MaxHealth = unit.MaxHealth,
+                CurrentMana = unit.CurrentMana,
+                MaxMana = unit.CurrentStats.ManaMax,
                 IsDead = unit.IsDead,
 
                 AttackSpeed = unit.CurrentStats.AttackSpeed,
@@ -293,22 +393,44 @@ public sealed class NetworkSnapshotBuilder
         {
             damageEvents.Add(new BattleDamageEventSnapshot
             {
-                SourceBattleInstanceId = string.IsNullOrEmpty(damageEvent.SourceBattleInstanceId)
-                    ? ""
-                    : damageEvent.SourceBattleInstanceId,
-
-                TargetBattleInstanceId = string.IsNullOrEmpty(damageEvent.TargetBattleInstanceId)
-                    ? ""
-                    : damageEvent.TargetBattleInstanceId,
-
+                SourceBattleInstanceId = string.IsNullOrEmpty(damageEvent.SourceBattleInstanceId) ? "" : damageEvent.SourceBattleInstanceId,
+                TargetBattleInstanceId = string.IsNullOrEmpty(damageEvent.TargetBattleInstanceId) ? "" : damageEvent.TargetBattleInstanceId,
                 Amount = damageEvent.Amount,
                 Delivery = damageEvent.Delivery
             });
         }
 
+        List<BattleManaEventSnapshot> manaEvents = new();
+
+        foreach (BattleManaEvent manaEvent in gameController.Battle.EventBuffer.ManaEvents)
+        {
+            manaEvents.Add(new BattleManaEventSnapshot
+            {
+                TargetBattleInstanceId = string.IsNullOrEmpty(manaEvent.TargetBattleInstanceId) ? "" : manaEvent.TargetBattleInstanceId,
+                CurrentMana = manaEvent.CurrentMana,
+                MaxMana = manaEvent.MaxMana,
+                Amount = manaEvent.Amount,
+            });
+        }
+
+        List<BattleHealEventSnapshot> healEvents = new();
+
+        foreach (BattleHealEvent healEvent in gameController.Battle.EventBuffer.HealEvents)
+        {
+            healEvents.Add(new BattleHealEventSnapshot
+            {
+                TargetBattleInstanceId = string.IsNullOrEmpty(healEvent.TargetBattleInstanceId) ? "" : healEvent.TargetBattleInstanceId,
+                CurrentHealth = healEvent.CurrentHealth,
+                MaxHealth = healEvent.MaxHealth,
+                Amount = healEvent.Amount,
+            });
+        }
+
         return new BattleEventsSnapshot
         {
-            DamageEvents = damageEvents.ToArray()
+            DamageEvents = damageEvents.ToArray(),
+            ManaEvents = manaEvents.ToArray(),
+            HealEvents = healEvents.ToArray()
         };
     }
 }

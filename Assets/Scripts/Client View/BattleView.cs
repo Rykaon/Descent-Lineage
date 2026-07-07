@@ -55,6 +55,7 @@ public class BattleView : MonoBehaviour
             }
 
             view.RefreshHealthBar(unit);
+            view.RefreshManaBar(unit);
         }
     }
 
@@ -86,15 +87,48 @@ public class BattleView : MonoBehaviour
             view.ShowDamagePopUp(damageEvent.Amount, color);
             view.RefreshHealthBar(target);
         }
+
+        foreach (BattleManaEventSnapshot manaEvent in snapshot.ManaEvents)
+        {
+            BattleClientUnit target = replicationState.GetUnitByBattleId(manaEvent.TargetBattleInstanceId.ToString());
+
+            if (target == null)
+                continue;
+
+            target.CurrentMana = manaEvent.CurrentMana;
+            target.MaxMana = manaEvent.MaxMana;
+
+            if (activeBattleViewsByBoardId.TryGetValue(target.BoardInstanceId, out UnitView view))
+            {
+                view.RefreshManaBar(target);
+            }
+        }
+
+        foreach (BattleHealEventSnapshot healEvent in snapshot.HealEvents)
+        {
+            BattleClientUnit target = replicationState.GetUnitByBattleId(healEvent.TargetBattleInstanceId.ToString());
+
+            if (target == null)
+                continue;
+
+            target.CurrentHealth = healEvent.CurrentHealth;
+            target.MaxHealth = healEvent.MaxHealth;
+
+            if (activeBattleViewsByBoardId.TryGetValue(target.BoardInstanceId, out UnitView view))
+            {
+                view.ShowDamagePopUp(healEvent.Amount, Color.greenYellow);
+                view.RefreshHealthBar(target);
+            }
+        }
     }
 
     private Color GetDamageColor(DamageDelivery delivery)
     {
         return delivery switch
         {
-            DamageDelivery.Ability => Color.darkCyan,
+            DamageDelivery.Ability => Color.cyan,
             DamageDelivery.DirectAttack => Color.red,
-            DamageDelivery.DamageOverTime => Color.greenYellow,
+            DamageDelivery.DamageOverTime => Color.darkOliveGreen,
             DamageDelivery.TrueDamage => Color.peachPuff,
             _ => Color.red
         };
@@ -107,7 +141,6 @@ public class BattleView : MonoBehaviour
             view.gameObject.SetActive(true);
             view.ResetToBoardPosition();
             view.ReleaseHealthBar();
-            Debug.Log("BATTLE UNIT VIEW RESET");
         }
 
         replicationState = null;
@@ -147,7 +180,6 @@ public class BattleView : MonoBehaviour
             Vector3 smoothedPosition = Vector3.Lerp(view.transform.position, position, 1f - Mathf.Exp(-25f * Time.deltaTime));
 
             view.SetBattlePosition(position, unit.MoveSpeed);
-            Debug.Log($"[BATTLE VIEW UPDATE] unit={unit.BoardInstanceId} targetPos={position} viewPos={view.transform.position} moveSpeed={unit.MoveSpeed}");
 
             Vector3 viewPos = view.transform.position;
 

@@ -16,6 +16,8 @@ public struct BattleInitUnitSnapshot : INetworkSerializable
 
     public int CurrentHealth;
     public int MaxHealth;
+    public int CurrentMana;
+    public int MaxMana;
 
     public float AttackSpeed;
     public float MoveSpeed;
@@ -31,6 +33,8 @@ public struct BattleInitUnitSnapshot : INetworkSerializable
         serializer.SerializeValue(ref CurrentHexR);
         serializer.SerializeValue(ref CurrentHealth);
         serializer.SerializeValue(ref MaxHealth);
+        serializer.SerializeValue(ref CurrentMana);
+        serializer.SerializeValue(ref MaxMana);
         serializer.SerializeValue(ref AttackSpeed);
         serializer.SerializeValue(ref MoveSpeed);
     }
@@ -44,6 +48,10 @@ public struct BattleFrameUnitSnapshot : INetworkSerializable
     public int CurrentHexR;
 
     public int CurrentHealth;
+    public int MaxHealth;
+    public int CurrentMana;
+    public int MaxMana;
+
     public bool IsDead;
 
     public float AttackSpeed;
@@ -57,6 +65,9 @@ public struct BattleFrameUnitSnapshot : INetworkSerializable
         serializer.SerializeValue(ref CurrentHexQ);
         serializer.SerializeValue(ref CurrentHexR);
         serializer.SerializeValue(ref CurrentHealth);
+        serializer.SerializeValue(ref MaxHealth);
+        serializer.SerializeValue(ref CurrentMana);
+        serializer.SerializeValue(ref MaxMana);
         serializer.SerializeValue(ref IsDead);
         serializer.SerializeValue(ref AttackSpeed);
         serializer.SerializeValue(ref MoveSpeed);

@@ -29,6 +29,8 @@ public sealed class BattleModifierSystem
     {
         unit.CurrentStats = CloneStats(unit.BaseStats);
 
+        ApplyCladeModifiers(unit);
+
         modifierBuffer.Clear();
 
         foreach (BattleStatusRuntime status in unit.Statuses)
@@ -50,6 +52,9 @@ public sealed class BattleModifierSystem
         {
             HealthPoints = source.HealthPoints,
             AttackSpeed = source.AttackSpeed,
+            ManaMax = source.ManaMax,
+            ManaRegenPerAuto = source.ManaRegenPerAuto,
+            ManaRegenPerDamage = source.ManaRegenPerDamage,
             SlashOffense = source.SlashOffense,
             ImpactOffense = source.ImpactOffense,
             SlashDefense = source.SlashDefense,
@@ -60,6 +65,16 @@ public sealed class BattleModifierSystem
             CollisionRadius = source.CollisionRadius,
             CollisionHalfLength = source.CollisionHalfLength
         };
+    }
+
+    private void ApplyCladeModifiers(BattleUnitInstance unit)
+    {
+        foreach (ActiveCladeEffect effect in BattleSystem.CladeSystem.GetActiveEffects(unit.OwnerPlayerId))
+        {
+            BattleCladeEffectRuntime runtime = BattleCladeEffectFactory.Create(effect.EffectId);
+            runtime.Initialize(BattleSystem);
+            runtime.ModifyStats(unit, effect);
+        }
     }
 
     private void ApplyModifier(BaseStats stats, BattleStatModifier modifier)

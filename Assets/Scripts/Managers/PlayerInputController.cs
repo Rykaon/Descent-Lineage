@@ -33,7 +33,6 @@ public class PlayerInputController : MonoBehaviour
         this.commandSender = commandSender;
         this.mirror = mirror;
 
-        boardView.Initialize(mirror);
         battleView.Initialize(mirror);
     }
 
@@ -71,8 +70,6 @@ public class PlayerInputController : MonoBehaviour
 
     public void RefreshShop()
     {
-        Debug.Log("[INPUT] RefreshShop pressed");
-
         GameCommandResult result = commandSender.SubmitCommand(new GameCommand
         {
             PlayerId = context.PlayerId,
@@ -304,32 +301,27 @@ public class PlayerInputController : MonoBehaviour
 
     private bool TryDropUnitAtTile(UnitView unit, BoardTileView tile)
     {
-        Debug.Log("TRY DROP UNIT ENTER");
-
-        if (!mirror.Players[context.PlayerId].Board.TryGetUnit(unit.UnitInstanceId, out var clientUnit))
+        if (!mirror.Players[mirror.LocalPlayerId].Board.TryGetUnit(unit.UnitInstanceId, out var clientUnit))
         {
-            Debug.Log("PLAYER NOT FOUND IN MIRROR");
             return false;
         }
 
-        if (clientUnit.OwnerPlayerId != context.PlayerId)
+        if (clientUnit.OwnerPlayerId != mirror.LocalPlayerId)
         {
             return false;
         }
 
         if (!mirror.SharedBoard.TryGetTile(clientUnit.Node, out var unitTile))
         {
-            Debug.Log("UNIT TILE NOT FOUND IN MIRROR");
             return false;
         }
 
         if (!mirror.SharedBoard.TryGetTile(tile.Node, out var destinationTile))
         {
-            Debug.Log("DESTINATION TILE NOT FOUND IN MIRROR");
             return false;
         }
 
-        if (destinationTile.OwnerPlayerId != context.PlayerId)
+        if (destinationTile.OwnerPlayerId != mirror.LocalPlayerId)
         {
             return false;
         }
@@ -338,7 +330,6 @@ public class PlayerInputController : MonoBehaviour
         {
             if (destinationTile != null && destinationTile.BoardType != BoardType.Bench)
             {
-                Debug.Log("JE SAIS PAS");
                 return false;
             }
         }
@@ -346,7 +337,6 @@ public class PlayerInputController : MonoBehaviour
         {
             if (destinationTile == null)
             {
-                Debug.Log("DESTINATION TILE NULL");
                 return false;
             }
 
@@ -354,18 +344,16 @@ public class PlayerInputController : MonoBehaviour
             {
                 if (destinationTile.BoardType == BoardType.Board)
                 {
-                    if (mirror.Players[context.PlayerId].UnitsOnBoard >= mirror.Players[context.PlayerId].BoardCapacity)
+                    if (mirror.Players[mirror.LocalPlayerId].UnitsOnBoard >= mirror.Players[mirror.LocalPlayerId].BoardCapacity)
                     {
-                        Debug.Log("TOO MUCH UNIT ON BOARD");
                         return false;
                     }
                     else
                     {
-                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                        if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
                         {
-                            if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                            if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
                             {
-                                Debug.Log("ALREADY UNIT ON NODE");
                                 return false;
                             }
                         }
@@ -373,11 +361,10 @@ public class PlayerInputController : MonoBehaviour
                 }
                 else
                 {
-                    if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                    if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
                     {
-                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                        if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
                         {
-                            Debug.Log("ALREADY UNIT ON NODE");
                             return false;
                         }
                     }
@@ -387,30 +374,26 @@ public class PlayerInputController : MonoBehaviour
             {
                 if (destinationTile.BoardType == BoardType.Board)
                 {
-                    if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                    if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
                     {
-                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                        if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
                         {
-                            Debug.Log("ALREADY UNIT ON NODE");
                             return false;
                         }
                     }
                 }
                 else
                 {
-                    if (mirror.Players[context.PlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
+                    if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.ContainsKey(destinationTile.Node))
                     {
-                        if (mirror.Players[context.PlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
+                        if (mirror.Players[mirror.LocalPlayerId].Board.UnitIdByNode.TryGetValue(destinationTile.Node, out var other) && other != clientUnit.InstanceId)
                         {
-                            Debug.Log("ALREADY UNIT ON NODE");
                             return false;
                         }
                     }
                 }
             }
         }
-
-        Debug.Log("CAN DROP UNIT");
 
         return true;
     }
@@ -474,7 +457,6 @@ public class PlayerInputController : MonoBehaviour
                         else
                         {
                             currentDestinationTile.ShowVisualizer(false);
-                            Debug.Log("False");
                         }
                     }
                 }

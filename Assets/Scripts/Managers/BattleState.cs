@@ -75,12 +75,15 @@ public sealed class BattleStateBuilder
                     BaseStats = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).BaseStats,
                     CurrentStats = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).BaseStats,
 
+                    AbilityId = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).AbilityId,
+
                     AttackRangeTier = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).AttackRangeTier,
                     CollisionBodyPreset = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).CollisionBodyPreset,
 
                     BasicAttackDamageProfile = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).BasicAttackDamageProfile,
                     AbilityDamageProfile = battleSystem.unitDatabase.GetUnit(boardUnit.DefinitionId).AbilityDamageProfile,
 
+                    CurrentMana = 0,
                     AttackCooldownRemaining = 0,
                     TimeWithoutMoving = 0,
 
@@ -106,26 +109,6 @@ public sealed class BattleStateBuilder
                     DecisionReason = null,
                     DesiredAttackPosition = default,
                     HasDesiredAttackPosition = false,
-
-                    NoProgressTimer = 0,
-                    LastDistanceToWaypoint = 0,
-                    WasEngagedLastFrame = false,
-                    TimeSinceNotEngaged = 0,
-                    TimeSinceEngaged = 0,
-
-                    DebugStallTimer = 0,
-
-                    NavigationAge = 0,
-                    LastNoProgressPosition = default,
-                    HasLastNoProgressPosition = false,
-                    PhysicalBlockCooldown = 0,
-
-                    AvoidanceSide = 0,
-                    AvoidanceSideLockTimer = 0,
-                    AvoidanceObstacleId = null,
-                    BypassDirection = default,
-                    BypassTimer = 0,
-                    BypassObstacleId = null,
 
 
 
@@ -154,10 +137,5 @@ public sealed class BattleStateBuilder
         }
 
         return battleState;
-    }
-
-    private BattleHexCoord BoardNodeToBattleHex(BoardNode node)
-    {
-        return new BattleHexCoord(q: node.X + 1, r: node.Y);
     }
 }

@@ -1,5 +1,6 @@
 using Unity.Collections;
 using Unity.Netcode;
+using UnityEngine;
 
 public struct GamePhaseSnapshot : INetworkSerializable
 {
@@ -106,19 +107,7 @@ public struct ShopStateSnapshot : INetworkSerializable
 
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
-        int count = Slots == null ? 0 : Slots.Length;
-
-        serializer.SerializeValue(ref count);
-
-        if (serializer.IsReader)
-        {
-            Slots = new ShopSlotSnapshot[count];
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            serializer.SerializeValue(ref Slots[i]);
-        }
+        NetworkSerializationUtility.SerializeArray(serializer, ref Slots);
     }
 }
 
@@ -128,19 +117,7 @@ public struct FaunaShopStateSnapshot : INetworkSerializable
 
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
-        int count = Slots == null ? 0 : Slots.Length;
-
-        serializer.SerializeValue(ref count);
-
-        if (serializer.IsReader)
-        {
-            Slots = new FaunaShopSlotSnapshot[count];
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            serializer.SerializeValue(ref Slots[i]);
-        }
+        NetworkSerializationUtility.SerializeArray(serializer, ref Slots);
     }
 }
 
@@ -164,30 +141,41 @@ public struct BoardStateSnapshot : INetworkSerializable
 {
     public BoardUnitSnapshot[] Units;
     public BoardTileSnapshot[] Tiles;
+    public CladeStateSnapshot Clades;
 
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
-        SerializeArray(serializer, ref Units);
-        SerializeArray(serializer, ref Tiles);
+        NetworkSerializationUtility.SerializeArray(serializer, ref Units);
+        NetworkSerializationUtility.SerializeArray(serializer, ref Tiles);
+        serializer.SerializeValue(ref Clades);
     }
+}
 
-    private static void SerializeArray<TSerializer, TElement>(BufferSerializer<TSerializer> serializer, ref TElement[] array)
-        where TSerializer : IReaderWriter
-        where TElement : INetworkSerializable, new()
+public struct CladeProgressSnapshot : INetworkSerializable
+{
+    public FixedString64Bytes CladeId;
+    public int Count;
+    public int NextThreshold;
+    public bool IsActive;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
-        int count = array == null ? 0 : array.Length;
+        serializer.SerializeValue(ref CladeId);
+        serializer.SerializeValue(ref Count);
+        serializer.SerializeValue(ref NextThreshold);
+        serializer.SerializeValue(ref IsActive);
+    }
+}
 
-        serializer.SerializeValue(ref count);
+public struct CladeStateSnapshot : INetworkSerializable
+{
+    public int PlayerId;
+    public CladeProgressSnapshot[] Clades;
 
-        if (serializer.IsReader)
-        {
-            array = new TElement[count];
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            serializer.SerializeValue(ref array[i]);
-        }
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref PlayerId);
+        NetworkSerializationUtility.SerializeArray(serializer, ref Clades);
     }
 }
 
@@ -225,5 +213,27 @@ public struct FossilMutationSnapshot : INetworkSerializable
         serializer.SerializeValue(ref DisplayName);
         serializer.SerializeValue(ref Biome);
         serializer.SerializeValue(ref Rank);
+    }
+}
+
+public static class NetworkSerializationUtility
+{
+    public static void SerializeArray<TSerializer, TElement>(BufferSerializer<TSerializer> serializer, ref TElement[] array)
+        where TSerializer : IReaderWriter
+        where TElement : INetworkSerializable, new()
+    {
+        int count = array == null ? 0 : array.Length;
+
+        serializer.SerializeValue(ref count);
+
+        if (serializer.IsReader)
+        {
+            array = new TElement[count];
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            serializer.SerializeValue(ref array[i]);
+        }
     }
 }

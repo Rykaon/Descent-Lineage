@@ -115,8 +115,27 @@ public class AttackSystem
 
         target.LastDamageSourceBattleInstanceId = attacker.BattleInstanceId;
         target.PendingDamageContexts.Add(context);
+        GainManaOnAuto(attacker);
 
         BattleSystem.EffectSystem.BasicAttackHit(context);
+    }
+
+    private void GainManaOnAuto(BattleUnitInstance attacker)
+    {
+        if (string.IsNullOrEmpty(attacker.AbilityId) || attacker.AbilityId == "None")
+            return;
+
+        int before = attacker.CurrentMana;
+
+        attacker.CurrentMana += attacker.CurrentStats.ManaRegenPerAuto;
+        attacker.CurrentMana = Mathf.Min(attacker.CurrentMana, attacker.CurrentStats.ManaMax);
+
+        int gained = attacker.CurrentMana - before;
+
+        if (gained != 0)
+        {
+            BattleSystem.EventBuffer.AddManaEvent(attacker, gained);
+        }
     }
 
     public void Clear()

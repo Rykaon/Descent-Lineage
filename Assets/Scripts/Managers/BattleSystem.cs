@@ -22,18 +22,22 @@ public class BattleSystem
     public BattleEffectSystem EffectSystem { get; private set; }
     public BattleStatusSystem StatusSystem { get; private set; }
     public BattleModifierSystem ModifierSystem { get; private set; }
+    public BattleAbilitySystem AbilitySystem { get; private set; }
+    public BattleCladeSystem CladeSystem { get; private set; }
     public BattleEventBuffer EventBuffer { get; private set; }
 
     public IUnitDefinitionDatabase unitDatabase { get; private set; }
     public IMutationDefinitionDatabase mutationDatabase { get; private set; }
+    public ICladeDefinitionDatabase cladeDatabase { get; private set; }
 
     public event Action<BattleUnitInstance, int, DamageDelivery> OnDamageApplied;
 
-    public void Initialize(IUnitDefinitionDatabase unitDatabase, IMutationDefinitionDatabase mutationDatabase, SharedBoardState state)
+    public void Initialize(IUnitDefinitionDatabase unitDatabase, IMutationDefinitionDatabase mutationDatabase, ICladeDefinitionDatabase cladeDatabase, SharedBoardState state)
     {
         BoardState = state;
         this.unitDatabase = unitDatabase;
         this.mutationDatabase = mutationDatabase;
+        this.cladeDatabase = cladeDatabase;
 
         BattleStateBuilder = new BattleStateBuilder();
 
@@ -53,6 +57,8 @@ public class BattleSystem
         EffectSystem = new BattleEffectSystem();
         StatusSystem = new BattleStatusSystem();
         ModifierSystem = new BattleModifierSystem();
+        AbilitySystem = new BattleAbilitySystem();
+        CladeSystem = new BattleCladeSystem();
         EventBuffer = new BattleEventBuffer();
 
         TargetingSystem.Initialize(this);
@@ -64,6 +70,8 @@ public class BattleSystem
         EffectSystem.Initialize(this);
         StatusSystem.Initialize(this);
         ModifierSystem.Initialize(this);
+        AbilitySystem.Initialize(this);
+        CladeSystem.Initialize(this);
     }
 
     public void StartServerBattle(GameState gameState)
@@ -71,6 +79,7 @@ public class BattleSystem
         ClearBattle();
 
         BattleState = BattleStateBuilder.Build(gameState, this);
+        CladeSystem.BuildClades();
         EffectSystem.BuildEffectsForBattle();
     }
 
@@ -88,6 +97,7 @@ public class BattleSystem
 
         StatusSystem.Tick(deltaTime);
         ModifierSystem.Tick(deltaTime);
+        CladeSystem.Tick(deltaTime);
 
         TargetingSystem.Tick(deltaTime);
         HexAttackPositionSystem.Tick(deltaTime);
@@ -95,6 +105,7 @@ public class BattleSystem
         HexEngagementSystem.Tick(deltaTime);
         EffectSystem.Tick(deltaTime);
         AttackSystem.Tick(deltaTime);
+        AbilitySystem.Tick(deltaTime);
         DeathSystem.Tick();
     }
 
@@ -143,6 +154,8 @@ public class BattleSystem
         DeathSystem.Clear();
         EffectSystem.Clear();
         StatusSystem.Clear();
+        AbilitySystem.Clear();
+        CladeSystem.Clear();
         ModifierSystem.Clear();
         EventBuffer.Clear();
     }
@@ -162,12 +175,15 @@ public sealed class BattleUnitInstance
     public List<string> MutationIds = new();
     public readonly List<BattleEffectRuntime> Effects = new();
     public readonly List<BattleStatusRuntime> Statuses = new();
+    public readonly Dictionary<string, float> CladeEffectTimers = new();
 
     public int MaxHealth;
     public int CurrentHealth;
 
     public BaseStats BaseStats;
     public BaseStats CurrentStats;
+
+    public string AbilityId;
 
     public DamageProfile BasicAttackDamageProfile;
     public DamageProfile AbilityDamageProfile;
@@ -177,7 +193,10 @@ public sealed class BattleUnitInstance
 
     public readonly List<DamageContext> PendingDamageContexts = new();
 
+    public int CurrentMana;
     public float AttackCooldownRemaining;
+    public readonly Dictionary<string, int> CladeStacks = new();
+
     public float TimeWithoutMoving;
 
     public bool IsEngaged;
@@ -209,26 +228,6 @@ public sealed class BattleUnitInstance
 
     public bool HasDesiredAttackPosition;
     public Vector2 DesiredAttackPosition;
-
-    public float NoProgressTimer;
-    public float LastDistanceToWaypoint;
-    public bool WasEngagedLastFrame;
-    public float TimeSinceNotEngaged;
-    public float TimeSinceEngaged;
-
-    public float DebugStallTimer;
-
-    public float NavigationAge;
-    public Vector2 LastNoProgressPosition;
-    public bool HasLastNoProgressPosition;
-    public float PhysicalBlockCooldown;
-
-    public int AvoidanceSide;
-    public float AvoidanceSideLockTimer;
-    public string AvoidanceObstacleId;
-    public float BypassTimer;
-    public Vector2 BypassDirection;
-    public string BypassObstacleId;
 
 
 

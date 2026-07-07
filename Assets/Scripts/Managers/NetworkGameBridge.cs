@@ -18,12 +18,36 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     private int battleSnapshotTickCounter;
     private const int BattleSnapshotEveryTicks = 1;
 
+    private const int RequiredPlayers = 2;
+    private readonly HashSet<ulong> readyClients = new();
+    private bool gameStarted;
+
     public override void OnNetworkSpawn()
     {
+        if (IsServer)
+        {
+            gameController = FindFirstObjectByType<GameController>();
+            sessionConfig = FindFirstObjectByType<GameSessionConfig>();
+        }
+
+        if (IsClient && !IsServer)
+        {
+            sessionConfig = FindFirstObjectByType<GameSessionConfig>();
+            clientContext = FindFirstObjectByType<ClientGameContext>();
+            localInput = FindFirstObjectByType<PlayerInputController>();
+        }
+
         Debug.Log($"[NETWORK BRIDGE SPAWN] IsServer={IsServer} IsClient={IsClient} role={sessionConfig.Role}");
 
         if (IsServer)
         {
+            gameController = FindFirstObjectByType<GameController>();
+            sessionConfig = FindFirstObjectByType<GameSessionConfig>();
+
+            gameController.OnPhaseChanged += HandlePhaseChanged;
+            gameController.OnBattleTicked += HandleBattleTicked;
+            gameController.OnPreparationTicked += HandlePreparationTicked;
+
             snapshotBuilder = new NetworkSnapshotBuilder(gameController);
 
             playerRegistry.Clear();
@@ -36,20 +60,13 @@ public sealed class NetworkGameBridge : NetworkBehaviour
                 RegisterClient(clientId);
             }
 
-            if (sessionConfig.Role == NetworkGameRole.DedicatedServer)
-            {
-                gameController.StartGame();
-                BroadcastBoardState();
-                BroadcastShopState();
-                BroadcastFaunaShopState();
-            }
+            Debug.Log("[SERVER] Dedicated server ready. Waiting for clients.");
         }
 
         if (IsClient && !IsServer)
         {
             Debug.Log($"[BRIDGE] Create applier context={clientContext.GetInstanceID()} mirrorNull={clientContext.Mirror == null}");
             snapshotApplier = new NetworkSnapshotApplier(clientContext);
-            InitializeClientInput();
         }
     }
 
@@ -62,58 +79,86 @@ public sealed class NetworkGameBridge : NetworkBehaviour
 
         if (IsServer)
         {
+            if (gameController != null)
+            {
+                gameController.OnPhaseChanged -= HandlePhaseChanged;
+                gameController.OnBattleTicked -= HandleBattleTicked;
+                gameController.OnPreparationTicked -= HandlePreparationTicked;
+            }
+
             NetworkManager.OnClientConnectedCallback -= HandleClientConnected;
             NetworkManager.OnClientDisconnectCallback -= HandleClientDisconnected;
         }
     }
 
-    private void OnEnable()
-    {
-        gameController.OnPhaseChanged += HandlePhaseChanged;
-        gameController.OnBattleTicked += HandleBattleTicked;
-        gameController.OnPreparationTicked += HandlePreparationTicked;
-    }
-
-    private void OnDisable()
-    {
-        gameController.OnPhaseChanged -= HandlePhaseChanged;
-        gameController.OnBattleTicked -= HandleBattleTicked;
-        gameController.OnPreparationTicked -= HandlePreparationTicked;
-    }
-
     private void HandleClientConnected(ulong clientId)
     {
+        Debug.Log($"[BRIDGE] HandleClientConnected clientId={clientId}");
         RegisterClient(clientId);
     }
 
     private void HandleClientDisconnected(ulong clientId)
     {
+        readyClients.Remove(clientId);
         playerRegistry.UnregisterClient(clientId);
+
+        Debug.Log($"[SERVER] Client disconnected clientId={clientId}");
+
+        TryShutdownServerAfterFinishedGame();
     }
 
-    private void InitializeClientInput()
+    private void TryStartGameWhenReady()
     {
-        if (sessionConfig.Role != NetworkGameRole.Client)
+        if (gameStarted)
         {
             return;
         }
 
-        IGameCommandSender sender = new NetworkGameCommandSender(this);
-
-        if (sessionConfig.LocalPlayerId == 0)
+        if (!IsServer)
         {
-            snapshotApplier.Mirror.LocalPlayerId = sessionConfig.LocalPlayerId;
-            snapshotApplier.Mirror.OpponentPlayerId = 1;
-        }
-        else
-        {
-            snapshotApplier.Mirror.LocalPlayerId = sessionConfig.LocalPlayerId;
-            snapshotApplier.Mirror.OpponentPlayerId = 0;
+            return;
         }
 
-        localInput.Initialize(new LocalPlayerContext(sessionConfig.LocalPlayerId), sender, snapshotApplier.Mirror);
+        if (NetworkManager.Singleton.ConnectedClientsIds.Count < RequiredPlayers)
+        {
+            Debug.Log($"[SERVER] Waiting clients connected {NetworkManager.Singleton.ConnectedClientsIds.Count}/{RequiredPlayers}");
+            return;
+        }
 
-        Debug.Log("[NETWORK] Client input initialized");
+        if (readyClients.Count < RequiredPlayers)
+        {
+            Debug.Log($"[SERVER] Waiting clients ready {readyClients.Count}/{RequiredPlayers}");
+            return;
+        }
+
+        gameStarted = true;
+
+        Debug.Log("[SERVER] All clients ready. Starting game.");
+
+        gameController.StartGame();
+    }
+
+    private void TryShutdownServerAfterFinishedGame()
+    {
+        if (!IsServer)
+        {
+            return;
+        }
+
+        if (gameController == null || !gameController.IsGameFinished)
+        {
+            Debug.Log("[SERVER] Client disconnected but game is not finished. Server stays alive.");
+            return;
+        }
+
+        if (NetworkManager.Singleton.ConnectedClientsIds.Count > 0)
+        {
+            return;
+        }
+
+        Debug.Log("[SERVER] Game finished and all clients left. Shutting down server.");
+
+        Application.Quit();
     }
 
     private void RegisterClient(ulong clientId)
@@ -125,6 +170,8 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             return;
         }
 
+        readyClients.Remove(clientId);
+
         Debug.Log($"[NETWORK] Registered clientId={clientId} as playerId={playerId}");
 
         SendInitialStateToClient(clientId);
@@ -132,12 +179,21 @@ public sealed class NetworkGameBridge : NetworkBehaviour
 
     private void SendInitialStateToClient(ulong clientId)
     {
+        if (gameController == null)
+        {
+            return;
+        }
+
+        playerRegistry.TryGetPlayerId(clientId, out int playerId);
+
         SendInitialStateRpc(
+            playerId,
             snapshotBuilder.BuildBoardStateSnapshot(),
             snapshotBuilder.BuildPlayerStateSnapshot(),
             snapshotBuilder.BuildShopStateSnapshot(),
             snapshotBuilder.BuildFaunaShopStateSnapshot(),
             snapshotBuilder.BuildFossilStateSnapshot(),
+            snapshotBuilder.BuildCladeStateSnapshot(),
             new GamePhaseSnapshot
             {
                 Phase = gameController.State.Phase
@@ -146,20 +202,46 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     }
 
     [Rpc(SendTo.SpecifiedInParams)]
-    private void SendInitialStateRpc(BoardStateSnapshot board, PlayerStateSnapshot[] players, ShopStateSnapshot shop, FaunaShopStateSnapshot faunaShop, FossilStateSnapshot[] fossils, GamePhaseSnapshot phase, RpcParams rpcParams = default)
+    private void SendInitialStateRpc(int localPlayerId, BoardStateSnapshot board, PlayerStateSnapshot[] players, ShopStateSnapshot shop, FaunaShopStateSnapshot faunaShop, FossilStateSnapshot[] fossils, CladeStateSnapshot[] clades, GamePhaseSnapshot phase, RpcParams rpcParams = default)
     {
-        if (IsServer)
+        if (IsClient && !IsServer)
         {
+            int opponentPlayerId = localPlayerId == 0 ? 1 : 0;
+
+            snapshotApplier.Mirror.LocalPlayerId = localPlayerId;
+            snapshotApplier.Mirror.OpponentPlayerId = opponentPlayerId;
+
+            localInput.Initialize(new LocalPlayerContext(localPlayerId), new NetworkGameCommandSender(this), snapshotApplier.Mirror);
+
+            snapshotApplier.ApplyPhaseState(phase);
+            snapshotApplier.ApplyPlayerStates(players);
+            snapshotApplier.ApplyBoardState(board);
+            snapshotApplier.ApplyShopState(shop);
+            snapshotApplier.ApplyFaunaShopState(faunaShop);
+            snapshotApplier.ApplyFossilStates(fossils);
+            snapshotApplier.ApplyCladeStates(clades);
+
+            clientContext.NotifyInitialStateReady();
+            ClientInitialLoadReadyRpc();
+        }
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void ClientInitialLoadReadyRpc(RpcParams rpcParams = default)
+    {
+        ulong clientId = rpcParams.Receive.SenderClientId;
+
+        if (!playerRegistry.TryGetPlayerId(clientId, out int playerId))
+        {
+            Debug.LogWarning($"[SERVER] Ready rejected from unregistered clientId={clientId}");
             return;
         }
 
-        snapshotApplier.ApplyPhaseState(phase);
-        snapshotApplier.ApplyPlayerStates(players);
-        snapshotApplier.ApplyBoardState(board);
-        snapshotApplier.ApplyShopState(shop);
-        snapshotApplier.ApplyFaunaShopState(faunaShop);
-        snapshotApplier.ApplyFossilStates(fossils);
+        readyClients.Add(clientId);
 
+        Debug.Log($"[SERVER] Client ready clientId={clientId} playerId={playerId} ready={readyClients.Count}/{RequiredPlayers}");
+
+        TryStartGameWhenReady();
     }
 
     public void SubmitCommandToServer(GameCommand command)
@@ -206,6 +288,8 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             BroadcastBoardState();
             BroadcastPlayerState();
             BroadcastShopState();
+            BroadcastFaunaShopState();
+            BroadcastFossilState();
         }
 
         if (phase == GamePhase.Preparation)
@@ -213,11 +297,8 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             BroadcastBoardState();
             BroadcastPlayerState();
             BroadcastShopState();
-        }
-
-        if (phase == GamePhase.PreBattle)
-        {
-            localInput.HandlePhaseChanged(phase);
+            BroadcastFaunaShopState();
+            BroadcastFossilState();
         }
 
         if (phase == GamePhase.Battle)
@@ -272,6 +353,7 @@ public sealed class NetworkGameBridge : NetworkBehaviour
                 BroadcastBoardState();
                 BroadcastPlayerState();
                 BroadcastShopState();
+                BroadcastCladeState();
                 break;
 
             case GameCommandType.BuyShopFauna:
@@ -288,11 +370,13 @@ public sealed class NetworkGameBridge : NetworkBehaviour
 
             case GameCommandType.DropBoardUnit:
                 BroadcastBoardState();
+                BroadcastCladeState();
                 break;
 
             case GameCommandType.SellUnit:
                 BroadcastBoardState();
                 BroadcastPlayerState();
+                BroadcastCladeState();
                 break;
 
             case GameCommandType.DropBiomeTile:
@@ -314,6 +398,11 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     private void BroadcastBoardState()
     {
         ReceiveBoardStateRpc(snapshotBuilder.BuildBoardStateSnapshot());
+    }
+
+    private void BroadcastCladeState()
+    {
+        ReceiveCladeStateRpc(snapshotBuilder.BuildCladeStateSnapshot());
     }
 
     private void BroadcastPlayerState()
@@ -370,8 +459,6 @@ public sealed class NetworkGameBridge : NetworkBehaviour
 
         BattleFrameSnapshot snapshot = snapshotBuilder.BuildBattleFrameSnapshot();
 
-        Debug.Log($"[SERVER] BroadcastBattleFrame units={snapshot.Units.Length}");
-
         ReceiveBattleFrameRpc(snapshot);
     }
 
@@ -379,7 +466,9 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     {
         BattleEventsSnapshot snapshot = snapshotBuilder.BuildBattleEventsSnapshot();
 
-        if (snapshot.DamageEvents.Length == 0)
+        if ((snapshot.DamageEvents == null || snapshot.DamageEvents.Length == 0) &&
+            (snapshot.ManaEvents == null || snapshot.ManaEvents.Length == 0) &&
+            (snapshot.HealEvents == null || snapshot.HealEvents.Length == 0))
         {
             return;
         }
@@ -428,9 +517,18 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             return;
         }
 
-        Debug.Log($"[NETWORK] Board snapshot received. units={snapshot.Units.Length}, tiles={snapshot.Tiles.Length}");
-
         snapshotApplier.ApplyBoardState(snapshot);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ReceiveCladeStateRpc(CladeStateSnapshot[] snapshots)
+    {
+        if (IsServer)
+        {
+            return;
+        }
+
+        snapshotApplier.ApplyCladeStates(snapshots);
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -440,8 +538,6 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         {
             return;
         }
-
-        Debug.Log($"[NETWORK] Player snapshot received. players={snapshots.Length}");
 
         snapshotApplier.ApplyPlayerStates(snapshots);
     }
@@ -454,8 +550,6 @@ public sealed class NetworkGameBridge : NetworkBehaviour
             return;
         }
 
-        Debug.Log($"[NETWORK] Shop snapshot received. slots={snapshot.Slots.Length}");
-
         snapshotApplier.ApplyShopState(snapshot);
     }
 
@@ -466,8 +560,6 @@ public sealed class NetworkGameBridge : NetworkBehaviour
         {
             return;
         }
-
-        Debug.Log($"[NETWORK] Shop snapshot received. slots={snapshot.Slots.Length}");
 
         snapshotApplier.ApplyFaunaShopState(snapshot);
     }
@@ -492,8 +584,6 @@ public sealed class NetworkGameBridge : NetworkBehaviour
     [Rpc(SendTo.ClientsAndHost)]
     private void ReceiveBattleFrameRpc(BattleFrameSnapshot snapshot)
     {
-        Debug.Log($"[CLIENT RPC] BattleFrame received units={snapshot.Units.Length}");
-
         if (IsServer)
         {
             return;

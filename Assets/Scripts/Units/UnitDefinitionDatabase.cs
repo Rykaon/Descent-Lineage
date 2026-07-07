@@ -76,3 +76,30 @@ public class FaunaDefinitionDatabase : IFaunaDefinitionDatabase
         return faunas.Values;
     }
 }
+
+public class CladeDefinitionDatabase : ICladeDefinitionDatabase
+{
+    private readonly Dictionary<string, CladeDefinition> byId = new();
+
+    public CladeDefinitionDatabase(CladeDefinitionAsset[] assets)
+    {
+        foreach (var asset in assets)
+        {
+            var definition = asset.ToCore();
+            byId[definition.Id] = definition;
+        }
+    }
+
+    public CladeDefinition GetClade(string id)
+    {
+        byId.TryGetValue(id, out var definition);
+        return definition;
+    }
+
+    public CladeDefinition[] GetAllClades()
+    {
+        var result = new CladeDefinition[byId.Count];
+        byId.Values.CopyTo(result, 0);
+        return result;
+    }
+}

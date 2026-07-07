@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c99cb565fa29fbc4ea19fc5bb920e7c5, type: 3}
+  m_Name: CladeDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::CladeDefinitionDatabaseAsset
+  clades:
+  - {fileID: 11400000, guid: 0091b855cb963174bb8f7d21edda2fbd, type: 2}
+  - {fileID: 11400000, guid: cd315552fd4114345aa657f26c722830, type: 2}
